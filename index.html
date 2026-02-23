@@ -444,17 +444,12 @@ input,textarea,select{-webkit-user-select:text;user-select:text;}
   <div class="sidebar-logo-d"><div class="sidebar-logo-dot"></div>FinFlow</div>
   <div class="sd-section">
     <div class="sd-label">Пользователи</div>
-    <div class="sd-item" id="sdTab-bogdan" onclick="setActiveUser('bogdan')">
-      <div style="width:28px;height:28px;border-radius:8px;background:var(--u1);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:12px;color:white" id="sdAv-bogdan">Б</div>
-      <div><div id="sdName-bogdan" style="font-size:13px;font-weight:600">Богдан</div><div id="sdBadge-bogdan" style="font-size:10px;color:var(--text3)">0 ₽</div></div>
-    </div>
-    <div class="sd-item" id="sdTab-vika" onclick="setActiveUser('vika')">
-      <div style="width:28px;height:28px;border-radius:8px;background:var(--u2);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:12px;color:white" id="sdAv-vika">В</div>
-      <div><div id="sdName-vika" style="font-size:13px;font-weight:600">Вика</div><div id="sdBadge-vika" style="font-size:10px;color:var(--text3)">0 ₽</div></div>
-    </div>
-    <div class="sd-item" id="sdTab-shared" onclick="setActiveUser('shared')">
-      <div style="width:28px;height:28px;border-radius:8px;background:var(--shared);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:white">∑</div>
-      <div><div style="font-size:13px;font-weight:600">Общий</div><div id="sdBadge-shared" style="font-size:10px;color:var(--text3)">0 ₽</div></div>
+    <div id="sdUsersList">
+      <!-- populated dynamically in renderUserSwitcher() -->
+      <div class="sd-item" id="sdTab-shared" onclick="setActiveUser('shared')">
+        <div style="width:28px;height:28px;border-radius:8px;background:var(--shared);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:white">∑</div>
+        <div><div style="font-size:13px;font-weight:600">Общий</div><div id="sdBadge-shared" style="font-size:10px;color:var(--text3)">0 ₽</div></div>
+      </div>
     </div>
   </div>
   <div class="sd-section" style="margin-top:6px">
@@ -491,31 +486,8 @@ input,textarea,select{-webkit-user-select:text;user-select:text;}
     </div>
   </div>
 
-  <!-- USER SWITCHER -->
+  <!-- USER SWITCHER — populated dynamically in startApp() -->
   <div class="user-switcher" id="userSwitcher">
-    <div class="usr-pill active" id="pill-bogdan" onclick="setActiveUser('bogdan')">
-      <div class="usr-av" id="pilAv-bogdan" style="background:var(--u1)">Б</div>
-      <div class="usr-info">
-        <div class="usr-name" id="pilName-bogdan">Богдан</div>
-        <div class="usr-amt" id="pilAmt-bogdan">0 ₽</div>
-      </div>
-      <div class="usr-badge" id="pilBadge-bogdan" style="background:var(--u1)">0</div>
-    </div>
-    <div class="usr-pill" id="pill-vika" onclick="setActiveUser('vika')">
-      <div class="usr-av" id="pilAv-vika" style="background:var(--u2)">В</div>
-      <div class="usr-info">
-        <div class="usr-name" id="pilName-vika">Вика</div>
-        <div class="usr-amt" id="pilAmt-vika">0 ₽</div>
-      </div>
-      <div class="usr-badge" id="pilBadge-vika" style="background:var(--u2)">0</div>
-    </div>
-    <div class="usr-sum" id="pill-shared" onclick="setActiveUser('shared')">
-      <div class="usr-sum-icon">∑</div>
-      <div class="usr-sum-info">
-        <div class="usr-sum-label">Итого</div>
-        <div class="usr-sum-val" id="pilSum">0 ₽</div>
-      </div>
-    </div>
   </div>
 
   <!-- MAIN AREA -->
@@ -931,7 +903,10 @@ function startApp(accId, userId, accData, userData){
   const role = userData.role || 'editor';
   if(role === 'viewer'){
     // Hide all add/edit buttons for viewers
-    document.querySelectorAll('.hbtn[onclick*="openAdd"], [onclick*="openAdd"], .fab').forEach(el=>{ el.style.display='none'; });
+    document.querySelectorAll('.nav-add-btn, .fab-btn, .hbtn[onclick*="openAdd"]').forEach(el=>{ el.style.display='none'; });
+  } else {
+    // Make sure add buttons are visible for editors
+    document.querySelectorAll('.nav-add-btn, .fab-btn').forEach(el=>{ el.style.display=''; });
   }
 
   // 10. Connect Firebase and render
@@ -944,6 +919,7 @@ function startApp(accId, userId, accData, userData){
   try{
     initEmojiPicker();
     initColorPalette();
+    renderUserSwitcher();
     buildSidebarCats();
     updateSidebarUsers();
     updateBadges();
@@ -1034,8 +1010,9 @@ function initFirebase(url, room){
         Object.entries(remoteCfg.users).forEach(([uid,d])=>{
           if(USERS[uid]){ if(d.name)USERS[uid].name=d.name; if(d.color)USERS[uid].color=d.color; }
         });
-        document.documentElement.style.setProperty('--u1',USERS.bogdan.color);
-        document.documentElement.style.setProperty('--u2',USERS.vika.color);
+        const uids=Object.keys(USERS);
+        if(uids[0]) document.documentElement.style.setProperty('--u1',USERS[uids[0]].color);
+        if(uids[1]) document.documentElement.style.setProperty('--u2',USERS[uids[1]].color);
         updateSidebarUsers();
       }
       // Apply custom categories
@@ -1183,11 +1160,61 @@ applyLayout();
 window.addEventListener('resize', applyLayout);
 
 // ════════════════════════════════════════
-//  USER SWITCH
+//  USER SWITCHER (dynamic)
 // ════════════════════════════════════════
+function renderUserSwitcher(){
+  const sw=document.getElementById('userSwitcher');
+  const sdList=document.getElementById('sdUsersList');
+  const userIds=Object.keys(USERS);
+
+  // Mobile pills
+  if(sw){
+    const pills=userIds.map((uid,i)=>{
+      const u=USERS[uid];
+      const isActive=uid===activeUser;
+      return `<div class="usr-pill${isActive?' active':''}" id="pill-${uid}" onclick="setActiveUser('${uid}')">
+        <div class="usr-av" id="pilAv-${uid}" style="background:${u.color}">${u.name[0]}</div>
+        <div class="usr-info">
+          <div class="usr-name" id="pilName-${uid}">${u.name}</div>
+          <div class="usr-amt" id="pilAmt-${uid}">0 ${currency}</div>
+        </div>
+        <div class="usr-badge" id="pilBadge-${uid}" style="background:${u.color}">0</div>
+      </div>`;
+    }).join('');
+    const sharedActive=activeUser==='shared';
+    sw.innerHTML=pills+`<div class="usr-sum${sharedActive?' active':''}" id="pill-shared" onclick="setActiveUser('shared')">
+      <div class="usr-sum-icon">∑</div>
+      <div class="usr-sum-info">
+        <div class="usr-sum-label">Итого</div>
+        <div class="usr-sum-val" id="pilSum">0 ${currency}</div>
+      </div>
+    </div>`;
+  }
+
+  // Desktop sidebar
+  if(sdList){
+    const sdItems=userIds.map((uid,i)=>{
+      const u=USERS[uid];
+      const cssVar=i===0?'var(--u1)':'var(--u2)';
+      const isActive=uid===activeUser;
+      return `<div class="sd-item${isActive?' active':''}" id="sdTab-${uid}" onclick="setActiveUser('${uid}')">
+        <div style="width:28px;height:28px;border-radius:8px;background:${u.color};display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:12px;color:white" id="sdAv-${uid}">${u.name[0]}</div>
+        <div><div id="sdName-${uid}" style="font-size:13px;font-weight:600">${u.name}</div><div id="sdBadge-${uid}" style="font-size:10px;color:var(--text3)">0 ${currency}</div></div>
+      </div>`;
+    }).join('');
+    const sharedActive=activeUser==='shared';
+    sdList.innerHTML=sdItems+`<div class="sd-item${sharedActive?' active':''}" id="sdTab-shared" onclick="setActiveUser('shared')">
+      <div style="width:28px;height:28px;border-radius:8px;background:var(--shared);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:white">∑</div>
+      <div><div style="font-size:13px;font-weight:600">Общий</div><div id="sdBadge-shared" style="font-size:10px;color:var(--text3)">0 ${currency}</div></div>
+    </div>`;
+  }
+}
+
+
 function setActiveUser(u){
   activeUser=u;
-  ['bogdan','vika','shared'].forEach(id=>{
+  const dynamicIds = [...Object.keys(USERS), 'shared'];
+  dynamicIds.forEach(id=>{
     const pill=document.getElementById('pill-'+id);
     if(pill) pill.classList.toggle('active',id===u);
     const sdtab=document.getElementById('sdTab-'+id);
@@ -1199,15 +1226,16 @@ function setActiveUser(u){
 }
 function getExpenses(user){ 
   if(user==='shared') return allExpenses;
-  // Normalise: treat missing/null user as bogdan
-  return allExpenses.filter(e=>(e.user||'bogdan')===user); 
+  // Normalise: treat missing/null user as first user in USERS
+  const firstUser = Object.keys(USERS)[0] || '';
+  return allExpenses.filter(e=>(e.user||firstUser)===user); 
 }
 function getMonthExp(user){
   const y=currentDate.getFullYear(),m=currentDate.getMonth();
   return getExpenses(user).filter(e=>e.date.startsWith(`${y}-${String(m+1).padStart(2,'0')}`));
 }
 function updateBadges(){
-  ['bogdan','vika'].forEach(u=>{
+  Object.keys(USERS).forEach(u=>{
     const t=getMonthExp(u).reduce((s,e)=>s+e.amount,0);
     const pb=document.getElementById('pilBadge-'+u);
     if(pb) pb.textContent=t>=1000?(t/1000).toFixed(0)+'к':t.toFixed(0);
@@ -1409,8 +1437,11 @@ function showDaySheet(exps, dateStr){
 // ════════════════════════════════════════
 function openAddModal(dateStr){
   editingId=null;
-  document.getElementById('expUser').innerHTML=`<option value="bogdan">👤 ${USERS.bogdan.name}</option><option value="vika">👤 ${USERS.vika.name}</option>`;
-  document.getElementById('expUser').value=activeUser==='vika'?'vika':'bogdan';
+  const userIds=Object.keys(USERS);
+  document.getElementById('expUser').innerHTML=userIds.map(uid=>`<option value="${uid}">👤 ${USERS[uid].name}</option>`).join('');
+  // Default to active user if they are a real user (not 'shared'), else first user
+  const defaultUser = (activeUser && USERS[activeUser]) ? activeUser : (userIds[0]||'');
+  document.getElementById('expUser').value=defaultUser;
   document.getElementById('expName').value='';
   document.getElementById('expAmount').value='';
   document.getElementById('expDate').value=dateStr||new Date().toISOString().slice(0,10);
@@ -1421,7 +1452,8 @@ function openAddModal(dateStr){
 }
 function openEditModal(exp){
   editingId=exp.id;
-  document.getElementById('expUser').innerHTML=`<option value="bogdan">👤 ${USERS.bogdan.name}</option><option value="vika">👤 ${USERS.vika.name}</option>`;
+  const userIds=Object.keys(USERS);
+  document.getElementById('expUser').innerHTML=userIds.map(uid=>`<option value="${uid}">👤 ${USERS[uid].name}</option>`).join('');
   document.getElementById('expUser').value=exp.user;
   document.getElementById('expName').value=exp.name;
   document.getElementById('expAmount').value=exp.amount;
@@ -1506,10 +1538,13 @@ function renderCharts(){
 
   const cs=document.getElementById('compareSection');
   if(activeUser==='shared'){
-    const bE=getMonthExp('bogdan'),vE=getMonthExp('vika');
-    const bT=bE.reduce((s,e)=>s+e.amount,0),vT=vE.reduce((s,e)=>s+e.amount,0);
+    const userIds=Object.keys(USERS);
+    const u1id=userIds[0]||'', u2id=userIds[1]||'';
+    const u1E=getMonthExp(u1id),u2E=getMonthExp(u2id);
+    const bT=u1E.reduce((s,e)=>s+e.amount,0),vT=u2E.reduce((s,e)=>s+e.amount,0);
     const comb=bT+vT||1,bP=(bT/comb*100).toFixed(0),vP=(vT/comb*100).toFixed(0);
-    cs.innerHTML=`<div class="compare-row"><div class="compare-card"><div class="compare-head"><div class="compare-dot" style="background:var(--u1)"></div><div class="compare-name" style="color:var(--u1)">${USERS.bogdan.name}</div></div><div class="compare-total">${fmt(bT)}</div><div class="compare-sub">${bE.length} тр · ${bP}%</div></div><div class="compare-card"><div class="compare-head"><div class="compare-dot" style="background:var(--u2)"></div><div class="compare-name" style="color:var(--u2)">${USERS.vika.name}</div></div><div class="compare-total">${fmt(vT)}</div><div class="compare-sub">${vE.length} тр · ${vP}%</div></div></div><div class="versus-bar"><div class="versus-fill1" style="width:${bP}%"></div><div class="versus-fill2" style="width:${vP}%"></div></div><div class="versus-labels"><span style="color:var(--u1)">${USERS.bogdan.name} ${bP}%</span><span style="color:var(--u2)">${USERS.vika.name} ${vP}%</span></div>`;
+    const u1name=USERS[u1id]?.name||u1id, u2name=USERS[u2id]?.name||u2id;
+    cs.innerHTML=`<div class="compare-row"><div class="compare-card"><div class="compare-head"><div class="compare-dot" style="background:var(--u1)"></div><div class="compare-name" style="color:var(--u1)">${u1name}</div></div><div class="compare-total">${fmt(bT)}</div><div class="compare-sub">${u1E.length} тр · ${bP}%</div></div><div class="compare-card"><div class="compare-head"><div class="compare-dot" style="background:var(--u2)"></div><div class="compare-name" style="color:var(--u2)">${u2name}</div></div><div class="compare-total">${fmt(vT)}</div><div class="compare-sub">${u2E.length} тр · ${vP}%</div></div></div><div class="versus-bar"><div class="versus-fill1" style="width:${bP}%"></div><div class="versus-fill2" style="width:${vP}%"></div></div><div class="versus-labels"><span style="color:var(--u1)">${u1name} ${bP}%</span><span style="color:var(--u2)">${u2name} ${vP}%</span></div>`;
   } else cs.innerHTML='';
 
   const catT={};Object.keys(CATS).forEach(c=>catT[c]=0);
@@ -1631,8 +1666,9 @@ function saveUserSettings(uid){
   if(!cfg.users) cfg.users={};
   cfg.users[uid]={name,color};
   saveCfg();
-  document.documentElement.style.setProperty('--u1',USERS.bogdan.color);
-  document.documentElement.style.setProperty('--u2',USERS.vika.color);
+  const userIds=Object.keys(USERS);
+  if(userIds[0]) document.documentElement.style.setProperty('--u1',USERS[userIds[0]].color);
+  if(userIds[1]) document.documentElement.style.setProperty('--u2',USERS[userIds[1]].color);
   updateSidebarUsers();
   renderCalendar();
   if(currentView==='charts') renderCharts();
@@ -1640,7 +1676,7 @@ function saveUserSettings(uid){
   showToast(`✅ «${name}» обновлён`);
 }
 function updateSidebarUsers(){
-  ['bogdan','vika'].forEach(uid=>{
+  Object.keys(USERS).forEach(uid=>{
     const u=USERS[uid];
     const pa=document.getElementById('pilAv-'+uid); if(pa){pa.style.background=u.color;pa.textContent=u.name[0];}
     const pn=document.getElementById('pilName-'+uid); if(pn) pn.textContent=u.name;
@@ -1748,8 +1784,9 @@ function exportExcel(){
       rows.push([]); rows.push(['ИТОГО','','',data.reduce((s,e)=>s+e.amount,0),'','']);
       return XLSX.utils.aoa_to_sheet(rows);
     };
-    XLSX.utils.book_append_sheet(wb,makeSheet('bogdan'),USERS.bogdan.name);
-    XLSX.utils.book_append_sheet(wb,makeSheet('vika'),USERS.vika.name);
+    Object.keys(USERS).forEach(uid=>{
+      XLSX.utils.book_append_sheet(wb,makeSheet(uid),USERS[uid].name);
+    });
     XLSX.utils.book_append_sheet(wb,makeSheet('shared'),'Все расходы');
     const now=new Date();
     XLSX.writeFile(wb,`FinFlow_${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}.xlsx`);
@@ -2038,6 +2075,11 @@ function lockApp(){
   _session={accId:null,userId:null,userData:null,accData:null};
   _pendingAcc=null; _pendingUser=null;
   STORE_PREFIX='ff_none:';
+  USERS={}; CATS=JSON.parse(JSON.stringify(DEFAULT_CATS));
+
+  // Clear user switcher
+  const sw=document.getElementById('userSwitcher');
+  if(sw) sw.innerHTML='';
 
   // Remove user badge
   const badge = document.getElementById('userBadge');
