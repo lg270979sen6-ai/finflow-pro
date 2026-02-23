@@ -810,8 +810,8 @@ function startApp(accId, userId, accData, userData){
   // 2. Save session token (24h)
   const APP_VER = 'pro1';
   try{
-    localStorage.setItem('ffpro_active_acc',  accId);
-    localStorage.setItem('ffpro_active_user', userId);
+    sessionStorage.setItem('ffpro_active_acc', accId);
+    sessionStorage.setItem('ffpro_active_user', userId);
     localStorage.setItem(STORE_PREFIX+'sess',    Date.now().toString());
     localStorage.setItem(STORE_PREFIX+'sess_ver', APP_VER);
   }catch(e){}
@@ -2022,8 +2022,8 @@ function showChangePassword(){
 
 // ── Session check on startup ──
 function checkSession(){
-  const savedAcc  = (()=>{ try{return localStorage.getItem('ffpro_active_acc');}catch(e){return null;} })();
-  const savedUser = (()=>{ try{return localStorage.getItem('ffpro_active_user');}catch(e){return null;} })();
+  const savedAcc  = (()=>{ try{return sessionStorage.getItem('ffpro_active_acc');}catch(e){return null;} })();
+  const savedUser = (()=>{ try{return sessionStorage.getItem('ffpro_active_user');}catch(e){return null;} })();
 
   if(savedAcc && savedUser){
     const pfx  = 'ffpro_'+savedAcc+'_'+savedUser+':';
@@ -2062,8 +2062,8 @@ function showLoginScreen(){
 function lockApp(){
   // Clear session
   if(_session.accId && _session.userId){
-    try{ localStorage.setItem('ffpro_active_acc',''); }catch(e){}
-    try{ localStorage.setItem('ffpro_active_user',''); }catch(e){}
+    try{ sessionStorage.setItem('ffpro_active_acc',''); }catch(e){}
+    try{ sessionStorage.setItem('ffpro_active_user',''); }catch(e){}
     try{ localStorage.setItem(STORE_PREFIX+'sess','0'); }catch(e){}
   }
   // Disconnect Firebase
