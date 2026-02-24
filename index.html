@@ -395,25 +395,23 @@ input,textarea,select{-webkit-user-select:text;user-select:text;}
       <div style="margin-left:auto;font-size:18px;opacity:.3;">🔒</div>
     </div>
 
-    <!-- PIN dots (mobile) -->
-    <div id="pinDots" style="display:flex;justify-content:center;gap:14px;margin-bottom:20px;min-height:20px;"></div>
+    <!-- PIN dots -->
+    <div id="pinDots" style="display:flex;justify-content:center;gap:14px;margin-bottom:16px;min-height:20px;"></div>
 
-    <!-- Desktop input -->
+    <!-- Password input — always visible, triggers keyboard on mobile -->
     <div style="position:relative;margin-bottom:14px;" id="lockInputWrap">
-      <input id="lockInput" type="password" inputmode="numeric" maxlength="20"
-        onkeydown="if(event.key==='Enter')checkPassword()"
+      <input id="lockInput" type="password" inputmode="text" maxlength="20"
+        autocomplete="current-password"
+        onkeydown="if(event.key='Enter')checkPassword()"
         oninput="updatePinDots(this.value)"
         placeholder="Введите пароль"
         onfocus="this.parentElement.style.boxShadow='0 0 0 3px rgba(108,141,250,0.3)';this.style.borderColor='#6c8dfa';"
         onblur="this.parentElement.style.boxShadow='none';this.style.borderColor='rgba(108,141,250,0.4)';"
-        style="width:100%;padding:16px 48px 16px 18px;background:#1e2330;border:2px solid rgba(108,141,250,0.4);border-radius:14px;color:#fff;font-family:'DM Sans',sans-serif;font-size:16px;letter-spacing:4px;outline:none;transition:border-color .2s,box-shadow .2s;">
+        style="width:100%;padding:16px 48px 16px 18px;background:#1e2330;border:2px solid rgba(108,141,250,0.4);border-radius:14px;color:#fff;font-family:'DM Sans',sans-serif;font-size:16px;outline:none;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none;appearance:none;">
       <span style="position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none;opacity:.4;">🔑</span>
     </div>
-    <!-- Mobile tap area -->
-    <div id="lockTapArea" onclick="document.getElementById('lockInput').focus()"
-      style="display:none;width:100%;padding:16px;background:#1e2330;border:2px solid rgba(108,141,250,0.4);border-radius:14px;text-align:center;font-size:13px;color:#a0aabb;margin-bottom:14px;cursor:pointer;">
-      👆 Нажмите и введите пароль
-    </div>
+    <!-- lockTapArea kept as empty placeholder for JS compatibility -->
+    <div id="lockTapArea" style="display:none;"></div>
 
     <button onclick="checkPassword()"
       style="width:100%;padding:15px;border-radius:14px;background:#6c8dfa;color:#fff;border:none;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 6px 24px rgba(108,141,250,.35);transition:all .15s;"
@@ -1938,16 +1936,11 @@ function goToStep3(userId){
   document.getElementById('lockError').textContent = '';
   updatePinDots('');
   goToStep(3);
-  // Focus input
-  const isMobile = 'ontouchstart' in window && window.innerWidth < 768;
-  if(isMobile){
-    document.getElementById('lockInputWrap').style.display = 'none';
-    document.getElementById('lockTapArea').style.display   = 'block';
-  } else {
-    document.getElementById('lockInputWrap').style.display = 'block';
-    document.getElementById('lockTapArea').style.display   = 'none';
-    setTimeout(()=>{ try{document.getElementById('lockInput').focus();}catch(e){} }, 200);
-  }
+  // Always show input and focus — works on both mobile and desktop
+  document.getElementById('lockInputWrap').style.display = 'block';
+  document.getElementById('lockTapArea').style.display   = 'none';
+  // Slight delay so the step transition completes before focusing
+  setTimeout(()=>{ try{ document.getElementById('lockInput').focus(); }catch(e){} }, 150);
 }
 
 // ── Step navigation ──
@@ -1989,16 +1982,9 @@ function checkPassword(){
 
 function updatePinDots(val){
   const dots = document.getElementById('pinDots');
-  const tap  = document.getElementById('lockTapArea');
   if(!dots) return;
   const len = val.length;
-  if(len===0){
-    dots.innerHTML='';
-    const isMob='ontouchstart' in window && window.innerWidth<768;
-    if(tap && isMob) tap.style.display='block';
-    return;
-  }
-  if(tap) tap.style.display='none';
+  if(len===0){ dots.innerHTML=''; return; }
   const color = _pendingUser?.userData?.color || _pendingAcc?.accData?.color || '#6c8dfa';
   dots.innerHTML = Array.from({length:len}).map((_,i)=>
     `<div style="width:12px;height:12px;border-radius:50%;background:${color};animation:pinBounce .25s ease ${i===len-1?'0s':'none'} both;box-shadow:0 0 8px ${color}88;"></div>`
