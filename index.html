@@ -402,7 +402,7 @@ input,textarea,select{-webkit-user-select:text;user-select:text;}
     <div style="position:relative;margin-bottom:14px;" id="lockInputWrap">
       <input id="lockInput" type="password" inputmode="text" maxlength="20"
         autocomplete="current-password"
-        onkeydown="if(event.key='Enter')checkPassword()"
+        onkeydown="if(event.key==='Enter')checkPassword()"
         oninput="updatePinDots(this.value)"
         placeholder="Введите пароль"
         onfocus="this.parentElement.style.boxShadow='0 0 0 3px rgba(108,141,250,0.3)';this.style.borderColor='#6c8dfa';"
