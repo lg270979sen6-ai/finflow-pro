@@ -846,23 +846,7 @@ function startApp(accId, userId, accData, userData){
   // 5. Set active user to logged-in user
   activeUser = userId;
 
-  // 6. Seed data for new accounts (only if empty)
-  if(!allExpenses.length && Object.keys(USERS).length >= 2){
-    const uids = Object.keys(USERS);
-    const u1 = uids[0], u2 = uids[1];
-    const now=new Date(),y=now.getFullYear(),m=now.getMonth();
-    const p=n=>String(n).padStart(2,'0');
-    const mk=(u,day,name,amount,cat,note='')=>({id:Date.now()+Math.random(),user:u,name,amount,category:cat,date:`${y}-${p(m+1)}-${p(day)}`,note,ts:Date.now()});
-    allExpenses=[
-      mk(u1,3,'Аренда',950,'Жильё','Ежемесячная'),
-      mk(u1,7,'Продукты',120,'Еда'),
-      mk(u1,12,'Электричество',80,'Жильё'),
-      mk(u2,5,'Косметика',65,'Здоровье'),
-      mk(u2,9,'Продукты',95,'Еда'),
-      mk(u2,15,'Аптека',35,'Здоровье'),
-    ];
-    save();
-  }
+  // 6. Default budgets only (no seed expenses — they race with Firebase)
   if(!Object.keys(budgets).length){
     budgets={'Жильё':1100,'Еда':400,'Транспорт':200,'Развлечения':100,'Здоровье':150,'Дети':100,'Прочее':80};
     saveBud();
@@ -975,8 +959,17 @@ function initFirebase(url, room){
     if(_receivingRemote) return;
     _receivingRemote = true;
     const data = snap.val();
-    allExpenses = data ? Object.values(data) : [];
-    store.set('ff_exp', JSON.stringify(allExpenses));
+    // Only update if Firebase actually has data OR we have nothing locally
+    // This prevents a brief null snap from wiping real local expenses
+    if(data){
+      allExpenses = Object.values(data);
+      store.set('ff_exp', JSON.stringify(allExpenses));
+    } else if(!allExpenses.length){
+      // Firebase empty and nothing local — start fresh
+      allExpenses = [];
+      store.set('ff_exp', '[]');
+    }
+    // If data===null but we have local expenses — keep local until Firebase confirms
     renderCalendar();
     updateBadges();
     if(currentView==='charts') renderCharts();
@@ -1078,11 +1071,13 @@ function pushToFirebase(){
 
 let _firstConnect = true;
 function pushToFirebaseIfEmpty(){
-  // On first connect: only push if Firebase has no expenses yet
+  // On first connect: only push if Firebase has no expenses AND we have local data
+  // Never push an empty array — that would wipe real data for other users on the same account
   if(!fbRef || !fbConnected) return;
+  if(!allExpenses.length) return; // nothing local to push — wait for Firebase listener
   fbRef.child('expenses').once('value').then(snap=>{
     if(!snap.val()) {
-      // Firebase empty — push local data
+      // Firebase truly empty AND we have local data — push it
       pushToFirebase();
     }
     // else: Firebase has data, it will come via the listener — don't overwrite
