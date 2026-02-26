@@ -1813,73 +1813,6 @@ function addCustomCat(){
   buildSidebarCats(); renderCatManageList(); renderCatColorList();
   showToast(`✅ Категория «${name}» добавлена`);
 }
-// ── Edit category (name, icon, color) ──
-let _editingCatName = null;
-
-function openEditCat(name){
-  _editingCatName = name;
-  const cat = CATS[name];
-  if(!cat) return;
-  document.getElementById('editCatModalTitle').textContent = cat.builtin ? 'Редактировать категорию' : 'Редактировать категорию';
-  document.getElementById('editCatNameInput').value = name;
-  document.getElementById('editCatNameInput').disabled = cat.builtin; // can't rename builtins
-  document.getElementById('editCatNameInput').title = cat.builtin ? 'Встроенные категории нельзя переименовать' : '';
-  document.getElementById('editCatEmoji').textContent = cat.icon;
-  document.getElementById('editCatColor').value = cat.color;
-  document.getElementById('editCatModal').classList.add('open');
-}
-
-function saveEditCat(){
-  const cat = CATS[_editingCatName];
-  if(!cat) return;
-  const newName  = document.getElementById('editCatNameInput').value.trim();
-  const newIcon  = document.getElementById('editCatEmoji').textContent;
-  const newColor = document.getElementById('editCatColor').value;
-  if(!newName){ showToast('❌ Введите название'); return; }
-
-  if(newName !== _editingCatName && !cat.builtin){
-    // Rename: copy to new key, delete old
-    CATS[newName] = { ...cat, icon: newIcon, color: newColor };
-    delete CATS[_editingCatName];
-    // Update all expenses with old category name
-    allExpenses.forEach(e=>{ if(e.category===_editingCatName) e.category=newName; });
-    save();
-    if(!cfg.catColors) cfg.catColors={};
-    delete cfg.catColors[_editingCatName];
-    cfg.catColors[newName] = newColor;
-    // Update customCats or mark renamed builtin as custom
-    if(!cfg.customCats) cfg.customCats={};
-    delete cfg.customCats[_editingCatName];
-    cfg.customCats[newName] = {icon:newIcon, color:newColor};
-  } else {
-    CATS[_editingCatName].icon  = newIcon;
-    CATS[_editingCatName].color = newColor;
-    if(!cfg.catColors) cfg.catColors={};
-    cfg.catColors[_editingCatName] = newColor;
-    if(!cat.builtin && cfg.customCats && cfg.customCats[_editingCatName]){
-      cfg.customCats[_editingCatName] = {icon:newIcon, color:newColor};
-    }
-  }
-  saveCfg();
-  buildSidebarCats();
-  renderCatManageList();
-  renderCatColorList();
-  renderCalendar();
-  closeModal('editCatModal');
-  showToast('✅ Категория обновлена');
-}
-
-function toggleEditCatEmoji(ev){
-  ev.stopPropagation();
-  const ep = document.getElementById('editCatEmojiPicker');
-  ep.classList.toggle('open');
-}
-
-function selectEditCatEmoji(e){
-  document.getElementById('editCatEmoji').textContent = e;
-  document.getElementById('editCatEmojiPicker').classList.remove('open');
-}
-
 function deleteCat(name){
   if(!confirm(`Удалить «${name}»?`)) return;
   delete CATS[name];
@@ -1916,7 +1849,7 @@ function toggleEditEmojiPicker(ev){
 function saveEditCat(){
   const oldName = _editingCatName;
   const cat = CATS[oldName]; if(!cat) return;
-  const newName  = cat.builtin ? oldName : document.getElementById('editCatName').value.trim();
+  const newName  = document.getElementById('editCatName').value.trim();
   const newColor = document.getElementById('editCatColor').value;
   const newIcon  = document.getElementById('selectedEditEmoji').value || cat.icon;
   if(!newName){ showToast('❌ Введите название'); return; }
@@ -1932,13 +1865,10 @@ function saveEditCat(){
   }
   CATS[newName] = updated;
 
-  // Update cfg
-  if(!cat.builtin){
-    if(cfg.customCats){
-      delete cfg.customCats[oldName];
-      cfg.customCats[newName] = {icon:newIcon, color:newColor};
-    }
-  }
+  // Update cfg — works for both builtin and custom
+  if(!cfg.customCats) cfg.customCats = {};
+  delete cfg.customCats[oldName];
+  cfg.customCats[newName] = {icon:newIcon, color:newColor};
   if(!cfg.catColors) cfg.catColors={};
   if(oldName !== newName) delete cfg.catColors[oldName];
   cfg.catColors[newName] = newColor;
@@ -2349,36 +2279,6 @@ if(document.readyState !== 'loading') checkSession();
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="document.getElementById('editCatModal').classList.remove('open')">Отмена</button>
-      <button class="btn btn-primary" onclick="saveEditCat()">Сохранить</button>
-    </div>
-  </div>
-</div>
-
-<!-- EDIT CATEGORY MODAL -->
-<div class="modal-overlay" id="editCatModal">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <h2 id="editCatModalTitle">Редактировать категорию <button class="modal-close" onclick="closeModal('editCatModal')">×</button></h2>
-    <div class="form-group">
-      <label class="form-label">Название</label>
-      <input class="form-input" id="editCatNameInput" placeholder="Название категории">
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Иконка</label>
-        <div style="position:relative">
-          <button style="width:100%;height:46px;border-radius:12px;background:var(--surface);border:1.5px solid var(--border);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;"
-            onclick="toggleEditCatEmoji(event)"><span id="editCatEmoji">🏷</span></button>
-          <div class="emoji-picker" id="editCatEmojiPicker"></div>
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Цвет</label>
-        <input type="color" class="cp2" id="editCatColor" value="#6c8dfa" style="width:100%;height:46px;border-radius:12px;">
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal('editCatModal')">Отмена</button>
       <button class="btn btn-primary" onclick="saveEditCat()">Сохранить</button>
     </div>
   </div>
