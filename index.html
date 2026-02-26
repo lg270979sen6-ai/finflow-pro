@@ -1745,7 +1745,7 @@ function renderCatManageList(){
       <div style="width:12px;height:12px;border-radius:50%;background:${data.color};flex-shrink:0"></div>
       <span class="cat-manage-name">${name}</span>
       <button onclick="openEditCat('${name}')" style="background:var(--surface3);border:1px solid var(--border);color:var(--text2);border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;">✏️</button>
-      <button class="cat-manage-del${data.builtin?' default-cat':''}" onclick="${data.builtin?'showToast(\'❌ Встроенные категории нельзя удалить\')':` deleteCat('${name}')`}" ${data.builtin?'disabled':''}>${data.builtin?'🔒':'🗑'}</button>
+      <button class="cat-manage-del" onclick="deleteCat('${name}')">🗑</button>
     </div>`).join('');
 }
 function renderCatColorList(){
