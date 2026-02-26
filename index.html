@@ -1852,19 +1852,12 @@ let _pendingUser  = null; // { userId, userData }
 const APP_VER = 'pro1';
 
 // ── Load accounts from Firebase ──
-function loadAccounts(cb){
-  // Use a temporary Firebase connection just to read meta
-  let tempApp;
-  try{ tempApp = firebase.app('meta'); }catch(e){
-    try{ tempApp = firebase.initializeApp({databaseURL: FB_URL_PRO}, 'meta'); }catch(e2){
-      try{ tempApp = firebase.app(); }catch(e3){}
-    }
-  }
-  if(!tempApp){ showAccountsError('Ошибка Firebase SDK'); return; }
+// Uses a single shared Firebase app with anonymous auth
+let _metaApp = null;
 
-  // Sign in anonymously on the meta app before reading
-  const doRead = () => {
-    tempApp.database().ref(META_REF).once('value').then(snap=>{
+function loadAccounts(cb){
+  const doRead = (app) => {
+    app.database().ref(META_REF).once('value').then(snap=>{
       _allAccounts = {};
       const data = snap.val() || {};
       Object.entries(data).forEach(([accId, accData])=>{
@@ -1879,19 +1872,33 @@ function loadAccounts(cb){
     }).catch(err=>{ showAccountsError('Ошибка загрузки: ' + err.message); });
   };
 
+  // Get or create the meta app
+  try{ _metaApp = firebase.app('meta'); }catch(e){
+    try{ _metaApp = firebase.initializeApp({databaseURL: FB_URL_PRO}, 'meta'); }catch(e2){
+      try{ _metaApp = firebase.app(); }catch(e3){}
+    }
+  }
+  if(!_metaApp){ showAccountsError('Ошибка Firebase SDK'); return; }
+
+  // Sign in anonymously — wait for auth before reading
   try{
-    const metaAuth = tempApp.auth();
-    if(metaAuth.currentUser){
-      doRead();
+    const auth = _metaApp.auth();
+    const proceed = () => doRead(_metaApp);
+    if(auth.currentUser){
+      proceed();
     } else {
-      metaAuth.signInAnonymously().then(doRead).catch(e=>{
-        // If auth fails (e.g. rules still open) — try reading anyway
-        doRead();
+      auth.onAuthStateChanged(user => {
+        if(user){ proceed(); }
+      });
+      auth.signInAnonymously().catch(e=>{
+        // Rules might still be open — try reading anyway
+        console.warn('Meta auth failed:', e.message);
+        doRead(_metaApp);
       });
     }
   } catch(e){
-    // No auth SDK or auth not needed — read directly
-    doRead();
+    // No auth SDK — read directly
+    doRead(_metaApp);
   }
 }
 
