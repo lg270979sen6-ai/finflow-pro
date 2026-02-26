@@ -620,9 +620,23 @@ input,textarea,select{-webkit-user-select:text;user-select:text;}
           <button class="btn btn-primary" style="font-size:13px" onclick="saveCurrencySetting()">Сохранить</button>
         </div>
 
+        <!-- LANGUAGE -->
+        <div class="settings-section">
+          <h3 id="s_lang_h">🌐 Мова інтерфейсу</h3>
+          <div class="form-group">
+            <label class="form-label" id="s_lang_lbl">Мова</label>
+            <select class="form-select" id="settingLang">
+              <option value="uk">🇺🇦 Українська</option>
+              <option value="ru">🇷🇺 Русский</option>
+              <option value="en">🇬🇧 English</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" style="font-size:13px" onclick="saveLangSetting()" id="s_lang_btn">Зберегти</button>
+        </div>
+
         <!-- DATA -->
         <div class="settings-section">
-          <h3>🗄 Данные</h3>
+          <h3 id="s_data_h">🗄 Данные</h3>
           <div class="settings-row">
             <div><div class="settings-row-label">Excel (.xlsx)</div><div class="settings-row-sub">Все расходы по пользователям</div></div>
             <button class="btn btn-green" style="width:auto;padding:10px 16px;font-size:13px" onclick="exportExcel()">📥</button>
@@ -653,22 +667,22 @@ input,textarea,select{-webkit-user-select:text;user-select:text;}
   <div class="bottom-nav" id="bottomNav">
     <div class="nav-item active" data-view="calendar" onclick="switchView('calendar')">
       <div class="nav-icon">📅</div>
-      <div class="nav-label">Календарь</div>
+      <div class="nav-label" data-i18n="calendar">Календар</div>
     </div>
     <div class="nav-item" data-view="charts" onclick="switchView('charts')">
       <div class="nav-icon">📊</div>
-      <div class="nav-label">Аналитика</div>
+      <div class="nav-label" data-i18n="analytics">Аналітика</div>
     </div>
     <div class="nav-add">
       <button class="nav-add-btn" onclick="openAddModal()">＋</button>
     </div>
     <div class="nav-item" data-view="plan" onclick="switchView('plan')">
       <div class="nav-icon">🎯</div>
-      <div class="nav-label">План</div>
+      <div class="nav-label" data-i18n="plan">План</div>
     </div>
     <div class="nav-item" data-view="settings" onclick="switchView('settings')">
       <div class="nav-icon">⚙️</div>
-      <div class="nav-label">Настройки</div>
+      <div class="nav-label" data-i18n="settings">Налаштування</div>
     </div>
   </div>
 
@@ -745,9 +759,126 @@ const DEFAULT_CATS = {
   'Дети':        {icon:'🧒',color:'#ffd43b',builtin:true},
   'Прочее':      {icon:'📦',color:'#8892a4',builtin:true},
 };
+// ════════════════════════════════════════
+//  I18N — TRANSLATIONS
+// ════════════════════════════════════════
+const I18N = {
+  uk: {
+    // Nav
+    calendar:'Календар', analytics:'Аналітика', plan:'План', settings:'Налаштування',
+    // Settings sections
+    s_users:'👤 Користувачі', s_cats:'🏷 Категорії', s_catcolors:'🎨 Кольори категорій',
+    s_amtcolor:'💰 Колір сум', s_currency:'💱 Валюта', s_data:'🗄 Дані', s_lang:'🌐 Мова інтерфейсу',
+    // Category actions
+    new_cat:'Нова категорія', add_cat:'+ Додати', reset_cats:'↺ Скинути',
+    cat_name:'Назва', cat_icon:'Іконка', cat_color:'Колір', quick_color:'Швидкий колір',
+    // Amount color
+    preview:'Попередній перегляд', apply:'✅ Застосувати', reset:'↺ Скинути',
+    // Currency
+    save:'Зберегти',
+    // Data
+    excel_export:'Excel (.xlsx)', excel_sub:'Всі витрати по користувачам',
+    json_export:'JSON резерв', json_sub:'Повний дамп даних',
+    clear_all:'Очистити все', clear_sub:'Видалити всі витрати',
+    change_pass:'🔒 Змінити пароль', change_pass_sub:'Поточний пароль за замовчуванням: 1234',
+    lock:'🚪 Заблокувати', lock_sub:'Вийти та показати екран пароля',
+    change_btn:'Змінити', lock_btn:'Блокувати',
+    // Months
+    months:['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'],
+    months_g:['січня','лютого','березня','квітня','травня','червня','липня','серпня','вересня','жовтня','листопада','грудня'],
+    days:['ПН','ВТ','СР','ЧТ','ПТ','СБ','НД'],
+    // Built-in categories
+    cats:{'Жильё':'Житло','Еда':'Їжа','Транспорт':'Транспорт','Развлечения':'Розваги','Здоровье':'Здоров'я','Дети':'Діти','Прочее':'Інше'},
+    // Modals
+    add_expense:'Додати витрату', edit_expense:'Редагувати витрату',
+    expense_name:'Назва', expense_amount:'Сума', expense_cat:'Категорія',
+    expense_date:'Дата', expense_note:'Нотатка', expense_user:'Користувач',
+    cancel:'Скасувати', delete_btn:'Видалити',
+    // Toast / errors
+    err_name:'❌ Введіть назву', err_amount:'❌ Введіть суму',
+    saved:'✅ Збережено', deleted:'🗑 Видалено',
+    currency_saved:'✅ Валюту збережено', color_saved:'✅ Колір оновлено',
+    // Plan
+    plan_budget:'Бюджет', plan_spent:'Витрачено', plan_left:'Залишок',
+    // Shared
+    shared:'Спільні', total:'Загалом',
+    // Login screen
+    select_account:'Виберіть акаунт', who_are_you:'Хто ви?', enter_password:'Введіть пароль',
+    loading:'Завантаження...',
+  },
+  ru: {
+    calendar:'Календарь', analytics:'Аналитика', plan:'План', settings:'Настройки',
+    s_users:'👤 Пользователи', s_cats:'🏷 Категории', s_catcolors:'🎨 Цвета категорий',
+    s_amtcolor:'💰 Цвет сумм', s_currency:'💱 Валюта', s_data:'🗄 Данные', s_lang:'🌐 Язык интерфейса',
+    new_cat:'Новая категория', add_cat:'+ Добавить', reset_cats:'↺ Сбросить',
+    cat_name:'Название', cat_icon:'Иконка', cat_color:'Цвет', quick_color:'Быстрый цвет',
+    preview:'Предпросмотр', apply:'✅ Применить', reset:'↺ Сброс',
+    save:'Сохранить',
+    excel_export:'Excel (.xlsx)', excel_sub:'Все расходы по пользователям',
+    json_export:'JSON резерв', json_sub:'Полный дамп данных',
+    clear_all:'Очистить всё', clear_sub:'Удалить все расходы',
+    change_pass:'🔒 Сменить пароль', change_pass_sub:'Текущий пароль по умолчанию: 1234',
+    lock:'🚪 Заблокировать', lock_sub:'Выйти и показать экран пароля',
+    change_btn:'Сменить', lock_btn:'Блокировать',
+    months:['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'],
+    months_g:['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'],
+    days:['ПН','ВТ','СР','ЧТ','ПТ','СБ','ВС'],
+    cats:{'Жильё':'Жильё','Еда':'Еда','Транспорт':'Транспорт','Развлечения':'Развлечения','Здоровье':'Здоровье','Дети':'Дети','Прочее':'Прочее'},
+    add_expense:'Добавить расход', edit_expense:'Редактировать расход',
+    expense_name:'Название', expense_amount:'Сумма', expense_cat:'Категория',
+    expense_date:'Дата', expense_note:'Заметка', expense_user:'Пользователь',
+    cancel:'Отмена', delete_btn:'Удалить',
+    err_name:'❌ Введите название', err_amount:'❌ Введите сумму',
+    saved:'✅ Сохранено', deleted:'🗑 Удалено',
+    currency_saved:'✅ Валюта сохранена', color_saved:'✅ Цвет обновлён',
+    plan_budget:'Бюджет', plan_spent:'Потрачено', plan_left:'Остаток',
+    shared:'Общие', total:'Итого',
+    select_account:'Выберите аккаунт', who_are_you:'Кто вы?', enter_password:'Введите пароль',
+    loading:'Загрузка...',
+  },
+  en: {
+    calendar:'Calendar', analytics:'Analytics', plan:'Plan', settings:'Settings',
+    s_users:'👤 Users', s_cats:'🏷 Categories', s_catcolors:'🎨 Category colors',
+    s_amtcolor:'💰 Amount color', s_currency:'💱 Currency', s_data:'🗄 Data', s_lang:'🌐 Language',
+    new_cat:'New category', add_cat:'+ Add', reset_cats:'↺ Reset',
+    cat_name:'Name', cat_icon:'Icon', cat_color:'Color', quick_color:'Quick color',
+    preview:'Preview', apply:'✅ Apply', reset:'↺ Reset',
+    save:'Save',
+    excel_export:'Excel (.xlsx)', excel_sub:'All expenses by users',
+    json_export:'JSON backup', json_sub:'Full data dump',
+    clear_all:'Clear all', clear_sub:'Delete all expenses',
+    change_pass:'🔒 Change password', change_pass_sub:'Default password: 1234',
+    lock:'🚪 Lock', lock_sub:'Sign out and show password screen',
+    change_btn:'Change', lock_btn:'Lock',
+    months:['January','February','March','April','May','June','July','August','September','October','November','December'],
+    months_g:['January','February','March','April','May','June','July','August','September','October','November','December'],
+    days:['MO','TU','WE','TH','FR','SA','SU'],
+    cats:{'Жильё':'Housing','Еда':'Food','Транспорт':'Transport','Развлечения':'Entertainment','Здоровье':'Health','Дети':'Children','Прочее':'Other'},
+    add_expense:'Add expense', edit_expense:'Edit expense',
+    expense_name:'Name', expense_amount:'Amount', expense_cat:'Category',
+    expense_date:'Date', expense_note:'Note', expense_user:'User',
+    cancel:'Cancel', delete_btn:'Delete',
+    err_name:'❌ Enter name', err_amount:'❌ Enter amount',
+    saved:'✅ Saved', deleted:'🗑 Deleted',
+    currency_saved:'✅ Currency saved', color_saved:'✅ Color updated',
+    plan_budget:'Budget', plan_spent:'Spent', plan_left:'Remaining',
+    shared:'Shared', total:'Total',
+    select_account:'Select account', who_are_you:'Who are you?', enter_password:'Enter password',
+    loading:'Loading...',
+  },
+};
+
+// Active language — loaded from cfg or default UA
+let lang = 'uk';
+function t(key){ return (I18N[lang] && I18N[lang][key]) || (I18N['uk'][key]) || key; }
+
 const MONTHS   = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 const MONTHS_G = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
 const DAYS     = ['ПН','ВТ','СР','ЧТ','ПТ','СБ','ВС'];
+// Dynamic getters — return translated versions when lang is set
+function getMonths()  { return window._MONTHS   || MONTHS;   }
+function getMonthsG() { return window._MONTHS_G || MONTHS_G; }
+function getDays()    { return window._DAYS      || DAYS;     }
 const PALETTE_COLORS = ['#6c8dfa','#4ecca3','#ffa94d','#b197fc','#ff87b2','#ffd43b','#ff6b6b','#a78bfa','#34d399','#f472b6','#fb923c','#38bdf8','#e879f9','#facc15','#4ade80'];
 const EMOJI_LIST = ['🏠','🍔','🚗','🎬','💊','🧒','📦','🛒','💪','🎮','✈️','🎓','💼','🐾','🌿','🎁','🍷','☕','🎵','💈','🏋️','🛍️','🏥','📱','💻','🔧','🎨','📚','🌍','🏖️','🍕','🚀','💡','🎪','🐶','🌺','🎯','💎','🏦','🚿','⚽','🎸','🍰','🧴','🧹','🚁','🛞','🌙','⭐','🔑'];
 
@@ -852,9 +983,19 @@ function startApp(accId, userId, accData, userData){
   // 4. Apply saved config
   if(cfg.customCats) Object.entries(cfg.customCats).forEach(([n,d])=>{ CATS[n]={...d,builtin:false}; });
   if(cfg.catColors)  Object.keys(cfg.catColors).forEach(k=>{ if(CATS[k]) CATS[k].color=cfg.catColors[k]; });
+  // Apply saved category order
+  if(cfg.catOrder && Array.isArray(cfg.catOrder)){
+    const ordered = {};
+    cfg.catOrder.forEach(n=>{ if(CATS[n]) ordered[n]=CATS[n]; });
+    // Add any new cats not in saved order
+    Object.keys(CATS).forEach(n=>{ if(!ordered[n]) ordered[n]=CATS[n]; });
+    Object.keys(CATS).forEach(n=>delete CATS[n]);
+    Object.assign(CATS, ordered);
+  }
   if(cfg.users)      Object.entries(cfg.users).forEach(([uid,d])=>{ if(USERS[uid]){ if(d.name)USERS[uid].name=d.name; if(d.color)USERS[uid].color=d.color; }});
   currency    = cfg.currency    || '€';
   amountColor = cfg.amountColor || '#ffffff';
+  lang = cfg.lang || 'uk';
   document.documentElement.style.setProperty('--amount-color', amountColor);
 
   // 5. Set active user to logged-in user
@@ -910,6 +1051,9 @@ function startApp(accId, userId, accData, userData){
   try{ initFirebase(fbUrlToUse, fbRoomToUse); }catch(e){
     setSyncStatus('offline','Ошибка: '+e.message);
   }
+
+  // Apply language on startup
+  applyLang(lang, false);
 
   try{
     initEmojiPicker();
@@ -1342,15 +1486,15 @@ function getDayExp(y,m,d){
 
 function renderCalendar(){
   const y=currentDate.getFullYear(),m=currentDate.getMonth();
-  document.getElementById('calMonthLabel').textContent=`${MONTHS[m]} ${y}`;
-  document.getElementById('planMonthLabel').textContent=`${MONTHS[m]} ${y}`;
+  document.getElementById('calMonthLabel').textContent=`${getMonths()[m]} ${y}`;
+  document.getElementById('planMonthLabel').textContent=`${getMonths()[m]} ${y}`;
 
   const container=document.getElementById('calContainer');
   container.innerHTML='';
 
   // Build grid
   const gridDiv=document.createElement('div'); gridDiv.className='cal-grid';
-  DAYS.forEach(d=>{const e=document.createElement('div');e.className='cal-dow';e.textContent=d;gridDiv.appendChild(e);});
+  getDays().forEach(d=>{const e=document.createElement('div');e.className='cal-dow';e.textContent=d;gridDiv.appendChild(e);});
 
   let first=new Date(y,m,1).getDay(); first=(first===0)?6:first-1;
   const dim=new Date(y,m+1,0).getDate(), prevD=new Date(y,m,0).getDate(), today=new Date();
@@ -1435,7 +1579,7 @@ function renderRecentList(){
     const uc=USERS[exp.user];
     const isNew=(now-(exp.ts||0))<90000; // 90 sec
     const dt=new Date(exp.date+'T12:00:00');
-    const dateStr=`${dt.getDate()} ${MONTHS_G[dt.getMonth()]}`;
+    const dateStr=`${dt.getDate()} ${getMonthsG()[dt.getMonth()]}`;
     const userChip=activeUser==='shared'?`<span class="exp-user-tag" style="background:${uc.color}">${uc.name}</span>`:'';
     const newBadge=isNew?'<span class="new-badge"></span>':'';
     return `<div class="expense-card" onclick="showDetailById('${exp.id}')">
@@ -1468,7 +1612,7 @@ function showDaySheet(exps, dateStr){
   sheet.innerHTML=`<div class="bs-overlay" onclick="document.getElementById('daySheet').remove()"></div>
   <div class="bs-content">
     <div class="bs-handle"></div>
-    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;margin-bottom:14px">${dt.getDate()} ${MONTHS_G[dt.getMonth()]}</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;margin-bottom:14px">${dt.getDate()} ${getMonthsG()[dt.getMonth()]}</div>
     ${exps.map(exp=>{
       const cat=CATS[exp.category]||CATS['Прочее'];
       const uc=USERS[exp.user];
@@ -1553,7 +1697,7 @@ function showDetail(exp){
   document.getElementById('dCat').style.color=cat.color;
   document.getElementById('dAmt').textContent=fmt(exp.amount);
   const dt=new Date(exp.date+'T12:00:00');
-  document.getElementById('dDate').textContent=`${dt.getDate()} ${MONTHS_G[dt.getMonth()]} ${dt.getFullYear()}`;
+  document.getElementById('dDate').textContent=`${dt.getDate()} ${getMonthsG()[dt.getMonth()]} ${dt.getFullYear()}`;
   document.getElementById('dNote').textContent=exp.note?`📝 ${exp.note}`:'';
   document.getElementById('dUser').textContent=uc.name;
   document.getElementById('dUser').style.background=uc.color;
@@ -1619,7 +1763,7 @@ function renderCharts(){
   document.getElementById('donutLegend').innerHTML=dData.map(([cat,val])=>`<div class="legend-item"><div class="legend-dot" style="background:${CATS[cat].color}"></div><span class="legend-name">${cat}</span><span class="legend-pct">${total>0?(val/total*100).toFixed(0):0}%</span></div>`).join('');
 
   const months=[];
-  for(let i=5;i>=0;i--){const d2=new Date(currentDate.getFullYear(),currentDate.getMonth()-i,1);const pfx=`${d2.getFullYear()}-${String(d2.getMonth()+1).padStart(2,'0')}`;const tot=getExpenses(activeUser).filter(e=>e.date.startsWith(pfx)).reduce((s,e)=>s+e.amount,0);months.push({label:MONTHS[d2.getMonth()].slice(0,3),total:tot});}
+  for(let i=5;i>=0;i--){const d2=new Date(currentDate.getFullYear(),currentDate.getMonth()-i,1);const pfx=`${d2.getFullYear()}-${String(d2.getMonth()+1).padStart(2,'0')}`;const tot=getExpenses(activeUser).filter(e=>e.date.startsWith(pfx)).reduce((s,e)=>s+e.amount,0);months.push({label:getMonths()[d2.getMonth()].slice(0,3),total:tot});}
   const maxT=Math.max(...months.map(m=>m.total),100);
   const svg=document.getElementById('trendSvg'),W=svg.clientWidth||320,H=140;
   const pts=months.map((m,i)=>[20+(i/(months.length-1))*(W-40),15+((1-m.total/maxT)*(H-30)),m]);
@@ -1631,7 +1775,7 @@ function renderCharts(){
 //  PLAN
 // ════════════════════════════════════════
 function renderPlan(){
-  document.getElementById('planMonthLabel').textContent=`${MONTHS[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+  document.getElementById('planMonthLabel').textContent=`${getMonths()[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
   const exps=getMonthExp(activeUser),catT={};
   Object.keys(CATS).forEach(c=>catT[c]=0);
   exps.forEach(e=>{if(catT[e.category]!==undefined) catT[e.category]+=e.amount;});
@@ -1660,11 +1804,110 @@ function saveBudgets(){
 // ════════════════════════════════════════
 //  SETTINGS UI
 // ════════════════════════════════════════
+// ════════════════════════════════════════
+//  I18N APPLY
+// ════════════════════════════════════════
+function applyLang(newLang, save_){
+  const prevLang = lang;
+  lang = newLang;
+  const tr = I18N[lang];
+
+  // Translate built-in category names in CATS
+  // Build reverse map: any localized name -> canonical RU key
+  const reverseMap = {};
+  Object.keys(I18N).forEach(l=>{
+    if(I18N[l].cats) Object.entries(I18N[l].cats).forEach(([ruKey,locName])=>{ reverseMap[locName]=ruKey; });
+  });
+  // Also map RU keys to themselves
+  Object.keys(DEFAULT_CATS).forEach(k=>{ reverseMap[k]=k; });
+
+  if(tr.cats){
+    const newCats = {};
+    Object.entries(CATS).forEach(([name, data])=>{
+      const ruKey = reverseMap[name] || name; // find original RU key
+      const newName = (data.builtin && tr.cats[ruKey]) ? tr.cats[ruKey] : name;
+      // Also update expenses
+      if(newName !== name){
+        allExpenses.forEach(e=>{ if(e.category===name) e.category=newName; });
+      }
+      newCats[newName] = {...data};
+    });
+    Object.keys(CATS).forEach(k=>delete CATS[k]);
+    Object.assign(CATS, newCats);
+    // Update catOrder in cfg
+    if(cfg.catOrder) cfg.catOrder = cfg.catOrder.map(n=>{ const ruKey=reverseMap[n]||n; return (tr.cats[ruKey])||n; });
+  } // end if tr.cats
+
+  // Update nav labels
+  const navItems = document.querySelectorAll('.nav-item .nav-label');
+  const navKeys = ['calendar','analytics','plan','settings'];
+  navItems.forEach((el,i)=>{ if(navKeys[i]) el.textContent=t(navKeys[i]); });
+  // Update sidebar nav
+  document.querySelectorAll('.sd-nav-item').forEach(el=>{
+    const view = el.dataset.view;
+    if(view && t(view)!==view) el.querySelector('.sd-nav-label') && (el.querySelector('.sd-nav-label').textContent=t(view));
+  });
+
+  // Update MONTHS/DAYS globals used in calendar
+  window._MONTHS   = tr.months;
+  window._MONTHS_G = tr.months_g;
+  window._DAYS     = tr.days;
+
+  if(save_){
+    cfg.lang = lang;
+    saveCfg();
+    if(allExpenses.length) save(); // save translated expenses
+  }
+
+  // Update all data-i18n elements
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const key = el.getAttribute('data-i18n');
+    el.textContent = t(key);
+  });
+
+  buildSidebarCats();
+  renderCalendar();
+  if(currentView==='settings') renderSettingsUI();
+  if(currentView==='charts')   renderCharts();
+  if(currentView==='plan')     renderPlan();
+  updateBadges();
+}
+
+function saveLangSetting(){
+  const sel = document.getElementById('settingLang');
+  if(!sel) return;
+  applyLang(sel.value, true);
+  showToast(t('saved'));
+}
+
+// ════════════════════════════════════════
+//  CATEGORY ORDER
+// ════════════════════════════════════════
+function moveCat(name, dir){
+  const keys = Object.keys(CATS);
+  const idx = keys.indexOf(name);
+  const newIdx = idx + dir;
+  if(newIdx < 0 || newIdx >= keys.length) return;
+  // Swap
+  const tmp = keys[idx]; keys[idx]=keys[newIdx]; keys[newIdx]=tmp;
+  const newCats = {};
+  keys.forEach(k=>{ newCats[k]=CATS[k]; });
+  Object.keys(CATS).forEach(k=>delete CATS[k]);
+  Object.assign(CATS, newCats);
+  cfg.catOrder = keys;
+  saveCfg();
+  buildSidebarCats();
+  renderCatManageList();
+  renderCatColorList();
+}
+
 function renderSettingsUI(){
   const el=document.getElementById('amtPicker');
   if(el){ el.value=amountColor; document.getElementById('amtHex').value=amountColor; updateAmtPreview(amountColor); }
   const cs=document.getElementById('settingCurrency');
   if(cs) cs.value=currency;
+  const ls=document.getElementById('settingLang');
+  if(ls) ls.value=lang;
   renderCatManageList();
   renderCatColorList();
   renderUserSettings();
@@ -1674,6 +1917,14 @@ function renderSettingsUI(){
   const shownRoom = cfg.fbRoom || DEFAULT_FB_ROOM;
   document.getElementById('fbUrl').value  = shownUrl;
   document.getElementById('fbRoom').value = shownRoom;
+  // Update translatable UI elements
+  const _ti = (id, key) => { const e=document.getElementById(id); if(e) e.textContent=t(key); };
+  _ti('s_lang_h', 's_lang'); _ti('s_lang_btn','save'); _ti('s_data_h','s_data');
+  // Nav labels
+  const navLabels = document.querySelectorAll('.nav-label');
+  const navViews  = ['calendar','analytics','plan','settings'];
+  navLabels.forEach((el,i)=>{ if(navViews[i]) el.textContent=t(navViews[i]); });
+
   if(fbConnected){
     document.getElementById('fbStatus').className='firebase-status connected';
     document.getElementById('fbStatus').innerHTML='<span>●</span>&nbsp;Подключено · ' + shownRoom;
@@ -1739,14 +1990,21 @@ function updateSidebarUsers(){
 
 function renderCatManageList(){
   const el=document.getElementById('catManageList'); if(!el) return;
-  el.innerHTML=Object.entries(CATS).map(([name,data])=>`
-    <div class="cat-manage-row">
+  const keys = Object.keys(CATS);
+  el.innerHTML=keys.map((name,i)=>{
+    const data=CATS[name];
+    return `<div class="cat-manage-row">
+      <div style="display:flex;flex-direction:column;gap:2px;margin-right:2px">
+        <button onclick="moveCat('${name}',-1)" ${i===0?'disabled':''} style="background:none;border:none;color:${i===0?'var(--text3)':'var(--text2)'};cursor:${i===0?'default':'pointer'};font-size:13px;padding:0;line-height:1;">↑</button>
+        <button onclick="moveCat('${name}',1)" ${i===keys.length-1?'disabled':''} style="background:none;border:none;color:${i===keys.length-1?'var(--text3)':'var(--text2)'};cursor:${i===keys.length-1?'default':'pointer'};font-size:13px;padding:0;line-height:1;">↓</button>
+      </div>
       <span style="font-size:18px">${data.icon}</span>
       <div style="width:12px;height:12px;border-radius:50%;background:${data.color};flex-shrink:0"></div>
       <span class="cat-manage-name">${name}</span>
       <button onclick="openEditCat('${name}')" style="background:var(--surface3);border:1px solid var(--border);color:var(--text2);border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;">✏️</button>
       <button class="cat-manage-del" onclick="deleteCat('${name}')">🗑</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 function renderCatColorList(){
   const el=document.getElementById('catColorList'); if(!el) return;
