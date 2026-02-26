@@ -947,14 +947,6 @@ function initFirebase(url, room){
 
   setSyncStatus('syncing','Подключение...');
 
-  // Anonymous auth — required by Firebase Rules (auth != null)
-  // Signs in silently, user sees nothing different
-  if(firebase.auth){
-    firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION)
-      .then(()=> firebase.auth().signInAnonymously())
-      .catch(e=> console.warn('Auth error:', e.message));
-  }
-
   function onFbConnected(){
     fbConnected = true;
     setSyncStatus('online','Синхронизировано ✓');
@@ -962,6 +954,10 @@ function initFirebase(url, room){
     document.getElementById('fbStatus').innerHTML='<span>●</span>&nbsp;Подключено · ' + fbRoom;
     document.getElementById('btnDisconnect').style.display='block';
   }
+
+  // Authenticate anonymously BEFORE attaching listeners
+  // This ensures auth != null when Rules are strict
+  const startListeners = () => {
 
   // ── Listener 1: expenses (real-time, source of truth) ──
   fbRef.child('expenses').on('value', snap => {
@@ -1054,6 +1050,27 @@ function initFirebase(url, room){
       setSyncStatus('offline','Нет соединения — работаем локально');
     }
   });
+
+  }; // end startListeners
+
+  // Sign in anonymously then start listeners
+  try{
+    const auth = fbApp.auth();
+    if(auth.currentUser){
+      startListeners();
+    } else {
+      auth.setPersistence(firebase.auth.Auth.Persistence.SESSION)
+        .then(()=> auth.signInAnonymously())
+        .then(startListeners)
+        .catch(e=>{
+          console.warn('Auth error, trying without auth:', e.message);
+          startListeners(); // fallback: try anyway (works if rules are open)
+        });
+    }
+  } catch(e){
+    // No auth SDK — start listeners directly (open rules mode)
+    startListeners();
+  }
 }
 
 function mergeExpenses(local, remote){
@@ -1845,9 +1862,9 @@ function loadAccounts(cb){
   }
   if(!tempApp){ showAccountsError('Ошибка Firebase SDK'); return; }
 
-  // Authenticate anonymously before reading meta
-  const authAndLoad = (app) => {
-    const doRead = () => app.database().ref(META_REF).once('value').then(snap=>{
+  // Sign in anonymously on the meta app before reading
+  const doRead = () => {
+    tempApp.database().ref(META_REF).once('value').then(snap=>{
       _allAccounts = {};
       const data = snap.val() || {};
       Object.entries(data).forEach(([accId, accData])=>{
@@ -1860,17 +1877,22 @@ function loadAccounts(cb){
       });
       if(cb) cb();
     }).catch(err=>{ showAccountsError('Ошибка загрузки: ' + err.message); });
-
-    const auth = app.auth ? app.auth() : null;
-    if(auth && auth.currentUser){
-      doRead();
-    } else if(auth){
-      auth.signInAnonymously().then(doRead).catch(doRead);
-    } else {
-      doRead();
-    }
   };
-  authAndLoad(tempApp);
+
+  try{
+    const metaAuth = tempApp.auth();
+    if(metaAuth.currentUser){
+      doRead();
+    } else {
+      metaAuth.signInAnonymously().then(doRead).catch(e=>{
+        // If auth fails (e.g. rules still open) — try reading anyway
+        doRead();
+      });
+    }
+  } catch(e){
+    // No auth SDK or auth not needed — read directly
+    doRead();
+  }
 }
 
 function showAccountsError(msg){
