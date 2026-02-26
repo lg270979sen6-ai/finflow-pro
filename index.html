@@ -1053,13 +1053,23 @@ function initFirebase(url, room){
   });
 
   // Presence detection
+  // Firebase always fires false first on connect — ignore it for 4s to avoid "offline" flash
+  let _connectedOnce = false;
+  let _offlineTimer = null;
   fbDb.ref('.info/connected').on('value', snap => {
     if(snap.val()){
-      setSyncStatus('online','Online — данные синхронизируются');
-      // Only push local data if Firebase is empty (avoid overwriting remote on reconnect)
+      _connectedOnce = true;
+      if(_offlineTimer){ clearTimeout(_offlineTimer); _offlineTimer=null; }
+      setSyncStatus('online','Синхронизировано ✓');
       pushToFirebaseIfEmpty();
     } else {
-      setSyncStatus('offline','Нет соединения — работаем локально');
+      if(_connectedOnce){
+        // Was connected before — show offline after short delay (could be brief blip)
+        _offlineTimer = setTimeout(()=>{
+          setSyncStatus('offline','Нет соединения — работаем локально');
+        }, 3000);
+      }
+      // On first load — keep showing "Подключение..." until connected
     }
   });
 
