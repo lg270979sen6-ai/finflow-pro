@@ -934,9 +934,11 @@ function initFirebase(url, room){
     setSyncStatus('offline','SDK не загружен');
     return;
   }
-  // Delete existing apps
+  // Delete existing apps except ff_meta (used by loadAccounts)
   try{
-    firebase.apps.slice().forEach(a=>{try{a.delete();}catch(e){}});
+    firebase.apps.slice().forEach(a=>{
+      if(a.name !== 'ff_meta') try{a.delete();}catch(e){}
+    });
   }catch(e){}
   const fbCfg = {databaseURL: url};
   try{ fbApp = firebase.initializeApp(fbCfg); }
@@ -1852,12 +1854,27 @@ let _pendingUser  = null; // { userId, userData }
 const APP_VER = 'pro1';
 
 // ── Load accounts from Firebase ──
-// Uses a single shared Firebase app with anonymous auth
+// Always uses a single dedicated app instance for meta reads
 let _metaApp = null;
 
+function _getMetaApp(){
+  // Try to reuse existing app
+  try{ return firebase.app('ff_meta'); }catch(e){}
+  // Create fresh
+  try{ return firebase.initializeApp({databaseURL: FB_URL_PRO}, 'ff_meta'); }catch(e){}
+  // Fallback to default
+  try{ return firebase.app(); }catch(e){}
+  return null;
+}
+
 function loadAccounts(cb){
-  const doRead = (app) => {
-    app.database().ref(META_REF).once('value').then(snap=>{
+  if(!window.firebase){ showAccountsError('Firebase SDK не загружен'); return; }
+
+  _metaApp = _getMetaApp();
+  if(!_metaApp){ showAccountsError('Ошибка Firebase SDK'); return; }
+
+  const doRead = () => {
+    _metaApp.database().ref(META_REF).once('value').then(snap=>{
       _allAccounts = {};
       const data = snap.val() || {};
       Object.entries(data).forEach(([accId, accData])=>{
@@ -1872,33 +1889,32 @@ function loadAccounts(cb){
     }).catch(err=>{ showAccountsError('Ошибка загрузки: ' + err.message); });
   };
 
-  // Get or create the meta app
-  try{ _metaApp = firebase.app('meta'); }catch(e){
-    try{ _metaApp = firebase.initializeApp({databaseURL: FB_URL_PRO}, 'meta'); }catch(e2){
-      try{ _metaApp = firebase.app(); }catch(e3){}
-    }
-  }
-  if(!_metaApp){ showAccountsError('Ошибка Firebase SDK'); return; }
-
-  // Sign in anonymously — wait for auth before reading
+  // Try anonymous auth first; if it fails or SDK missing — read anyway (open rules fallback)
   try{
     const auth = _metaApp.auth();
-    const proceed = () => doRead(_metaApp);
     if(auth.currentUser){
-      proceed();
-    } else {
-      auth.onAuthStateChanged(user => {
-        if(user){ proceed(); }
-      });
-      auth.signInAnonymously().catch(e=>{
-        // Rules might still be open — try reading anyway
-        console.warn('Meta auth failed:', e.message);
-        doRead(_metaApp);
-      });
+      doRead();
+      return;
     }
+    // Wait for auth state — more reliable than .then() on signInAnonymously
+    let authDone = false;
+    const unsub = auth.onAuthStateChanged(user=>{
+      if(authDone) return;
+      authDone = true;
+      unsub();
+      doRead();
+    });
+    auth.signInAnonymously().catch(e=>{
+      console.warn('Anonymous auth failed:', e.message);
+      if(!authDone){ authDone=true; unsub(); doRead(); }
+    });
+    // Safety timeout — if auth hangs for 5s, read anyway
+    setTimeout(()=>{
+      if(!authDone){ authDone=true; try{unsub();}catch(e){} doRead(); }
+    }, 5000);
   } catch(e){
-    // No auth SDK — read directly
-    doRead(_metaApp);
+    // No auth SDK
+    doRead();
   }
 }
 
