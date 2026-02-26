@@ -753,7 +753,16 @@ const EMOJI_LIST = ['🏠','🍔','🚗','🎬','💊','🧒','📦','🛒','�
 // Accounts and users are managed in the admin panel (finflow-admin.html)
 // and stored in Firebase under finflow_meta/
 // This app reads them on startup to build the login screen.
-const FB_URL_PRO  = 'https://family-budget-32149-default-rtdb.europe-west1.firebasedatabase.app';
+const FB_CONFIG = {
+  apiKey: "AIzaSyBZ1b6yf1WQbhZ7lhIbeYw_fKc4k88mmFc",
+  authDomain: "family-budget-32149.firebaseapp.com",
+  databaseURL: "https://family-budget-32149-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "family-budget-32149",
+  storageBucket: "family-budget-32149.firebasestorage.app",
+  messagingSenderId: "1015461302295",
+  appId: "1:1015461302295:web:835d7a14a852c224534c52"
+};
+const FB_URL_PRO = FB_CONFIG.databaseURL;
 const META_REF    = 'finflow_meta'; // where admin panel stores accounts/users
 
 // ════════════════════════════════════════
@@ -940,7 +949,8 @@ function initFirebase(url, room){
       if(a.name !== 'ff_meta') try{a.delete();}catch(e){}
     });
   }catch(e){}
-  const fbCfg = {databaseURL: url};
+  // Use full config so Firebase Auth works (requires apiKey)
+  const fbCfg = url === FB_URL_PRO ? FB_CONFIG : {databaseURL: url};
   try{ fbApp = firebase.initializeApp(fbCfg); }
   catch(e){ fbApp = firebase.app(); }
   fbDb = firebase.database();
@@ -1058,19 +1068,26 @@ function initFirebase(url, room){
   // Sign in anonymously then start listeners
   try{
     const auth = fbApp.auth();
+    let _started = false;
+    const go = () => { if(!_started){ _started=true; startListeners(); } };
+
     if(auth.currentUser){
-      startListeners();
+      go();
     } else {
-      auth.setPersistence(firebase.auth.Auth.Persistence.SESSION)
-        .then(()=> auth.signInAnonymously())
-        .then(startListeners)
-        .catch(e=>{
-          console.warn('Auth error, trying without auth:', e.message);
-          startListeners(); // fallback: try anyway (works if rules are open)
-        });
+      // onAuthStateChanged fires as soon as token is ready — more reliable than .then()
+      const unsub = auth.onAuthStateChanged(user => {
+        if(user){ unsub(); go(); }
+      });
+      auth.signInAnonymously().catch(e=>{
+        console.warn('Auth failed, starting anyway:', e.message);
+        try{ unsub(); }catch(e2){}
+        go();
+      });
+      // Safety: if auth hangs 6s — start anyway
+      setTimeout(()=>{ go(); }, 6000);
     }
   } catch(e){
-    // No auth SDK — start listeners directly (open rules mode)
+    // No auth SDK — start listeners directly
     startListeners();
   }
 }
@@ -1861,7 +1878,7 @@ function _getMetaApp(){
   // Try to reuse existing app
   try{ return firebase.app('ff_meta'); }catch(e){}
   // Create fresh
-  try{ return firebase.initializeApp({databaseURL: FB_URL_PRO}, 'ff_meta'); }catch(e){}
+  try{ return firebase.initializeApp(Object.assign({}, FB_CONFIG), 'ff_meta'); }catch(e){}
   // Fallback to default
   try{ return firebase.app(); }catch(e){}
   return null;
