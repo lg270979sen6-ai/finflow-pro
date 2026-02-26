@@ -902,12 +902,10 @@ function startApp(accId, userId, accData, userData){
     document.querySelectorAll('.nav-add-btn, .fab-btn').forEach(el=>{ el.style.display=''; });
   }
 
-  // 10. Connect Firebase and render
-  setTimeout(()=>{
-    try{ initFirebase(fbUrlToUse, fbRoomToUse); }catch(e){
-      setSyncStatus('offline','Ошибка: '+e.message);
-    }
-  }, 600);
+  // 10. Connect Firebase immediately — auth handled inside initFirebase
+  try{ initFirebase(fbUrlToUse, fbRoomToUse); }catch(e){
+    setSyncStatus('offline','Ошибка: '+e.message);
+  }
 
   try{
     initEmojiPicker();
@@ -1053,7 +1051,6 @@ function initFirebase(url, room){
   });
 
   // Presence detection
-  // Firebase always fires false first on connect — ignore it for 4s to avoid "offline" flash
   let _connectedOnce = false;
   let _offlineTimer = null;
   fbDb.ref('.info/connected').on('value', snap => {
@@ -1062,14 +1059,11 @@ function initFirebase(url, room){
       if(_offlineTimer){ clearTimeout(_offlineTimer); _offlineTimer=null; }
       setSyncStatus('online','Синхронизировано ✓');
       pushToFirebaseIfEmpty();
-    } else {
-      if(_connectedOnce){
-        // Was connected before — show offline after short delay (could be brief blip)
-        _offlineTimer = setTimeout(()=>{
-          setSyncStatus('offline','Нет соединения — работаем локально');
-        }, 3000);
-      }
-      // On first load — keep showing "Подключение..." until connected
+    } else if(_connectedOnce){
+      // Only show offline if we were connected before (not on initial load)
+      _offlineTimer = setTimeout(()=>{
+        setSyncStatus('offline','Нет соединения — работаем локально');
+      }, 5000);
     }
   });
 
