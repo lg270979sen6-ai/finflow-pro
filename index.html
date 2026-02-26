@@ -12,6 +12,7 @@
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script>window._fbLoaded = true;</script>
 <style>
 :root {
@@ -946,6 +947,14 @@ function initFirebase(url, room){
 
   setSyncStatus('syncing','Подключение...');
 
+  // Anonymous auth — required by Firebase Rules (auth != null)
+  // Signs in silently, user sees nothing different
+  if(firebase.auth){
+    firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION)
+      .then(()=> firebase.auth().signInAnonymously())
+      .catch(e=> console.warn('Auth error:', e.message));
+  }
+
   function onFbConnected(){
     fbConnected = true;
     setSyncStatus('online','Синхронизировано ✓');
@@ -1836,21 +1845,32 @@ function loadAccounts(cb){
   }
   if(!tempApp){ showAccountsError('Ошибка Firebase SDK'); return; }
 
-  tempApp.database().ref(META_REF).once('value').then(snap=>{
-    _allAccounts = {};
-    const data = snap.val() || {};
-    Object.entries(data).forEach(([accId, accData])=>{
-      if(accId === '_system') return;
-      _allAccounts[accId] = {
-        name:  accData.name  || accId,
-        color: accData.color || '#6c8dfa',
-        users: accData.users || {},
-      };
-    });
-    if(cb) cb();
-  }).catch(err=>{
-    showAccountsError('Ошибка загрузки: ' + err.message);
-  });
+  // Authenticate anonymously before reading meta
+  const authAndLoad = (app) => {
+    const doRead = () => app.database().ref(META_REF).once('value').then(snap=>{
+      _allAccounts = {};
+      const data = snap.val() || {};
+      Object.entries(data).forEach(([accId, accData])=>{
+        if(accId === '_system') return;
+        _allAccounts[accId] = {
+          name:  accData.name  || accId,
+          color: accData.color || '#6c8dfa',
+          users: accData.users || {},
+        };
+      });
+      if(cb) cb();
+    }).catch(err=>{ showAccountsError('Ошибка загрузки: ' + err.message); });
+
+    const auth = app.auth ? app.auth() : null;
+    if(auth && auth.currentUser){
+      doRead();
+    } else if(auth){
+      auth.signInAnonymously().then(doRead).catch(doRead);
+    } else {
+      doRead();
+    }
+  };
+  authAndLoad(tempApp);
 }
 
 function showAccountsError(msg){
