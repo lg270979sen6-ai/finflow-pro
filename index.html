@@ -1490,6 +1490,14 @@ function getDayExp(y,m,d){
   });
 }
 
+// Get category data with fallback (works regardless of current language)
+function getCat(name){
+  if(CATS[name]) return CATS[name];
+  // Try to find by any translated name
+  const fallback = Object.values(CATS).find(c=>c.builtin) || Object.values(CATS)[0];
+  return fallback || {icon:'📦',color:'#8892a4'};
+}
+
 function renderCalendar(){
   const y=currentDate.getFullYear(),m=currentDate.getMonth();
   document.getElementById('calMonthLabel').textContent=`${getMonths()[m]} ${y}`;
@@ -1531,7 +1539,7 @@ function renderCalendar(){
     if(exps.length>0&&!c.other){
       const dotsWrap=document.createElement('div'); dotsWrap.className='cell-exp-dot';
       exps.slice(0,5).forEach(exp=>{
-        const cat=CATS[exp.category]||CATS['Прочее'];
+        const cat=getCat(exp.category);
         const dot=document.createElement('div'); dot.className='cell-dot'; dot.style.background=cat.color;
         dotsWrap.appendChild(dot);
       });
@@ -1581,7 +1589,7 @@ function renderRecentList(){
   const exps=[...getMonthExp(activeUser)].sort((a,b)=>b.date.localeCompare(a.date)||((b.ts||0)-(a.ts||0))).slice(0,15);
   const now=Date.now();
   el.innerHTML=exps.map(exp=>{
-    const cat=CATS[exp.category]||CATS['Прочее'];
+    const cat=getCat(exp.category);
     const uc=USERS[exp.user];
     const isNew=(now-(exp.ts||0))<90000; // 90 sec
     const dt=new Date(exp.date+'T12:00:00');
@@ -1620,7 +1628,7 @@ function showDaySheet(exps, dateStr){
     <div class="bs-handle"></div>
     <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;margin-bottom:14px">${dt.getDate()} ${getMonthsG()[dt.getMonth()]}</div>
     ${exps.map(exp=>{
-      const cat=CATS[exp.category]||CATS['Прочее'];
+      const cat=getCat(exp.category);
       const uc=USERS[exp.user];
       return `<div class="expense-card" style="padding:10px 0;border-bottom:1px solid var(--border)" onclick="document.getElementById('daySheet').remove();showDetailById('${exp.id}')">
         <div class="exp-icon" style="background:${cat.color}22;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">${cat.icon}</div>
