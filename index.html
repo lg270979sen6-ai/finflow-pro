@@ -1078,11 +1078,14 @@ function initFirebase(url, room){
       const unsub = auth.onAuthStateChanged(user => {
         if(user){ unsub(); go(); }
       });
-      auth.signInAnonymously().catch(e=>{
-        console.warn('Auth failed, starting anyway:', e.message);
-        try{ unsub(); }catch(e2){}
-        go();
-      });
+      // LOCAL persistence — token cached in localStorage, no re-auth on each open
+      auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+        .then(()=> auth.signInAnonymously())
+        .catch(e=>{
+          console.warn('Auth failed, starting anyway:', e.message);
+          try{ unsub(); }catch(e2){}
+          go();
+        });
       // Safety: if auth hangs 6s — start anyway
       setTimeout(()=>{ go(); }, 6000);
     }
@@ -1921,10 +1924,12 @@ function loadAccounts(cb){
       unsub();
       doRead();
     });
-    auth.signInAnonymously().catch(e=>{
-      console.warn('Anonymous auth failed:', e.message);
-      if(!authDone){ authDone=true; unsub(); doRead(); }
-    });
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+      .then(()=> auth.signInAnonymously())
+      .catch(e=>{
+        console.warn('Anonymous auth failed:', e.message);
+        if(!authDone){ authDone=true; try{unsub();}catch(e2){} doRead(); }
+      });
     // Safety timeout — if auth hangs for 5s, read anyway
     setTimeout(()=>{
       if(!authDone){ authDone=true; try{unsub();}catch(e){} doRead(); }
