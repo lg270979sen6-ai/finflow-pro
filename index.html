@@ -941,17 +941,18 @@ function initFirebase(url, room){
     setSyncStatus('offline','SDK не загружен');
     return;
   }
-  // Delete existing apps except ff_meta (used by loadAccounts)
-  try{
-    firebase.apps.slice().forEach(a=>{
-      if(a.name !== 'ff_meta') try{a.delete();}catch(e){}
-    });
-  }catch(e){}
-  // Use full config so Firebase Auth works (requires apiKey)
-  const fbCfg = url === FB_URL_PRO ? FB_CONFIG : {databaseURL: url};
-  try{ fbApp = firebase.initializeApp(fbCfg); }
-  catch(e){ fbApp = firebase.app(); }
-  fbDb = firebase.database();
+  // Reuse ff_meta app — it's already authenticated anonymously by loadAccounts
+  // This avoids creating a new app that needs to re-authenticate
+  try{ fbApp = firebase.app('ff_meta'); }catch(e){
+    // ff_meta not available — create fresh app with full config
+    try{
+      firebase.apps.slice().forEach(a=>{ try{a.delete();}catch(e){} });
+    }catch(e){}
+    const fbCfg = url === FB_URL_PRO ? FB_CONFIG : {databaseURL: url};
+    try{ fbApp = firebase.initializeApp(fbCfg); }
+    catch(e){ fbApp = firebase.app(); }
+  }
+  fbDb = fbApp.database();
   fbRoom = room;
   fbRef = fbDb.ref('finflow/' + room);
 
