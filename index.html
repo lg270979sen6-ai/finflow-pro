@@ -1828,7 +1828,7 @@ function openEditCat(name){
   _editingCatName = name;
   document.getElementById('editCatOldName').value = name;
   document.getElementById('editCatName').value = name;
-  document.getElementById('editCatName').disabled = !!cat.builtin;
+  document.getElementById('editCatName').disabled = false;
   document.getElementById('editCatColor').value = cat.color || '#6c8dfa';
   document.getElementById('editCatEmoji').textContent = cat.icon || '🏷';
   document.getElementById('selectedEditEmoji').value = cat.icon || '🏷';
