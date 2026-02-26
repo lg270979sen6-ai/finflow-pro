@@ -596,7 +596,7 @@ input,textarea,select{-webkit-user-select:text;user-select:text;}
             <div class="sw" style="background:#ffa94d" onclick="setAmtColor('#ffa94d')"></div>
             <div class="sw" style="background:#b197fc" onclick="setAmtColor('#b197fc')"></div>
           </div>
-          <div class="preview-box"><div class="preview-label">Предпросмотр</div><div class="pv-amt" id="pvAmt">28 450 ₽</div></div>
+          <div class="preview-box"><div class="preview-label">Предпросмотр</div><div class="pv-amt" id="pvAmt">28 450 €</div></div>
           <div style="display:flex;gap:8px;margin-top:12px">
             <button class="btn btn-primary" style="font-size:13px" onclick="saveAmtColor()">✅ Применить</button>
             <button class="btn btn-secondary" style="font-size:13px" onclick="setAmtColor('#ffffff')">↺ Сброс</button>
@@ -607,10 +607,14 @@ input,textarea,select{-webkit-user-select:text;user-select:text;}
         <div class="settings-section">
           <h3>💱 Валюта</h3>
           <div class="form-group"><label class="form-label">Валюта</label>
-            <select class="form-select" id="settingCurrency">
-              <option value="€">€ Евро</option><option value="₽">₽ Рубль</option>
-              <option value="$">$ Доллар</option><option value="£">£ Фунт</option>
-              <option value="₴">₴ Гривна</option><option value="₸">₸ Тенге</option>
+            <select class="form-select" id="settingCurrency" onchange="updateAmtPreview(document.getElementById('amtPicker').value||amountColor)">
+              <option value="€">€ Евро</option>
+              <option value="$">$ Доллар</option>
+              <option value="£">£ Фунт</option>
+              <option value="₴">₴ Гривна</option>
+              <option value="₸">₸ Тенге</option>
+              <option value="zł">zł Злотый</option>
+              <option value="₣">₣ Франк</option>
             </select>
           </div>
           <button class="btn btn-primary" style="font-size:13px" onclick="saveCurrencySetting()">Сохранить</button>
@@ -1740,8 +1744,8 @@ function renderCatManageList(){
       <span style="font-size:18px">${data.icon}</span>
       <div style="width:12px;height:12px;border-radius:50%;background:${data.color};flex-shrink:0"></div>
       <span class="cat-manage-name">${name}</span>
-      <span style="font-size:10px;color:var(--text3)">${data.builtin?'встр.':'своя'}</span>
-      <button class="cat-manage-del${data.builtin?' default-cat':''}" onclick="${data.builtin?'':` deleteCat('${name}')`}" ${data.builtin?'disabled':''}>${data.builtin?'🔒':'🗑'}</button>
+      <button onclick="openEditCat('${name}')" style="background:var(--surface3);border:1px solid var(--border);color:var(--text2);border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;">✏️</button>
+      <button class="cat-manage-del${data.builtin?' default-cat':''}" onclick="${data.builtin?'showToast(\'❌ Встроенные категории нельзя удалить\')':` deleteCat('${name}')`}" ${data.builtin?'disabled':''}>${data.builtin?'🔒':'🗑'}</button>
     </div>`).join('');
 }
 function renderCatColorList(){
@@ -1755,7 +1759,7 @@ function renderCatColorList(){
       </div>
     </div>`).join('');
 }
-function updateAmtPreview(c){ const e=document.getElementById('pvAmt'); if(e)e.style.color=c; }
+function updateAmtPreview(c){ const e=document.getElementById('pvAmt'); if(e){ e.style.color=c; e.textContent='28 450 '+(currency||'€'); } }
 function syncAmtPicker(v){ document.getElementById('amtHex').value=v; updateAmtPreview(v); }
 function syncAmtHex(v){ if(/^#[0-9a-fA-F]{6}$/.test(v)){document.getElementById('amtPicker').value=v;updateAmtPreview(v);} }
 function setAmtColor(c){ document.getElementById('amtPicker').value=c; document.getElementById('amtHex').value=c; updateAmtPreview(c); }
@@ -1763,7 +1767,7 @@ function saveAmtColor(){ amountColor=document.getElementById('amtPicker').value;
 function applyCatColor(cat,color){ CATS[cat].color=color; const d=document.getElementById('crdot-'+cat); if(d)d.style.background=color; if(!cfg.catColors)cfg.catColors={}; cfg.catColors[cat]=color; saveCfg(); renderCalendar(); }
 function resetCatColor(cat){ const def=DEFAULT_CATS[cat]?.color; if(!def)return; CATS[cat].color=def; const p=document.getElementById('crpick-'+cat),d=document.getElementById('crdot-'+cat); if(p)p.value=def; if(d)d.style.background=def; if(!cfg.catColors)cfg.catColors={}; cfg.catColors[cat]=def; saveCfg(); renderCalendar(); }
 function resetAllCats(){ Object.keys(DEFAULT_CATS).forEach(c=>{CATS[c].color=DEFAULT_CATS[c].color;}); cfg.catColors={}; Object.keys(DEFAULT_CATS).forEach(c=>cfg.catColors[c]=DEFAULT_CATS[c].color); saveCfg(); renderSettingsUI(); renderCalendar(); }
-function saveCurrencySetting(){ currency=document.getElementById('settingCurrency').value; cfg.currency=currency; saveCfg(); renderCalendar(); if(currentView==='charts')renderCharts(); if(currentView==='plan')renderPlan(); showToast('✅ Валюта сохранена'); }
+function saveCurrencySetting(){ currency=document.getElementById('settingCurrency').value; cfg.currency=currency; saveCfg(); renderCalendar(); if(currentView==='charts')renderCharts(); if(currentView==='plan')renderPlan(); updateAmtPreview(document.getElementById('amtPicker')?.value||amountColor); showToast('✅ Валюта сохранена'); }
 
 // ════════════════════════════════════════
 //  CUSTOM CATS
@@ -1786,6 +1790,8 @@ function toggleEmojiPicker(ev){
 function initEmojiPicker(){
   const ep=document.getElementById('emojiPicker');
   ep.innerHTML=EMOJI_LIST.map(e=>`<button class="ep-emoji" onclick="selectEmoji('${e}')">${e}</button>`).join('');
+  const ep2=document.getElementById('editCatEmojiPicker');
+  if(ep2) ep2.innerHTML=EMOJI_LIST.map(e=>`<button class="ep-emoji" onclick="selectEditCatEmoji('${e}')">${e}</button>`).join('');
 }
 function selectEmoji(e){ selectedNewCatEmoji=e; document.getElementById('selectedEmoji').textContent=e; document.getElementById('emojiPicker').classList.remove('open'); }
 function initColorPalette(){
@@ -1807,14 +1813,140 @@ function addCustomCat(){
   buildSidebarCats(); renderCatManageList(); renderCatColorList();
   showToast(`✅ Категория «${name}» добавлена`);
 }
+// ── Edit category (name, icon, color) ──
+let _editingCatName = null;
+
+function openEditCat(name){
+  _editingCatName = name;
+  const cat = CATS[name];
+  if(!cat) return;
+  document.getElementById('editCatModalTitle').textContent = cat.builtin ? 'Редактировать категорию' : 'Редактировать категорию';
+  document.getElementById('editCatNameInput').value = name;
+  document.getElementById('editCatNameInput').disabled = cat.builtin; // can't rename builtins
+  document.getElementById('editCatNameInput').title = cat.builtin ? 'Встроенные категории нельзя переименовать' : '';
+  document.getElementById('editCatEmoji').textContent = cat.icon;
+  document.getElementById('editCatColor').value = cat.color;
+  document.getElementById('editCatModal').classList.add('open');
+}
+
+function saveEditCat(){
+  const cat = CATS[_editingCatName];
+  if(!cat) return;
+  const newName  = document.getElementById('editCatNameInput').value.trim();
+  const newIcon  = document.getElementById('editCatEmoji').textContent;
+  const newColor = document.getElementById('editCatColor').value;
+  if(!newName){ showToast('❌ Введите название'); return; }
+
+  if(newName !== _editingCatName && !cat.builtin){
+    // Rename: copy to new key, delete old
+    CATS[newName] = { ...cat, icon: newIcon, color: newColor };
+    delete CATS[_editingCatName];
+    // Update all expenses with old category name
+    allExpenses.forEach(e=>{ if(e.category===_editingCatName) e.category=newName; });
+    save();
+    if(!cfg.catColors) cfg.catColors={};
+    delete cfg.catColors[_editingCatName];
+    cfg.catColors[newName] = newColor;
+    // Update customCats or mark renamed builtin as custom
+    if(!cfg.customCats) cfg.customCats={};
+    delete cfg.customCats[_editingCatName];
+    cfg.customCats[newName] = {icon:newIcon, color:newColor};
+  } else {
+    CATS[_editingCatName].icon  = newIcon;
+    CATS[_editingCatName].color = newColor;
+    if(!cfg.catColors) cfg.catColors={};
+    cfg.catColors[_editingCatName] = newColor;
+    if(!cat.builtin && cfg.customCats && cfg.customCats[_editingCatName]){
+      cfg.customCats[_editingCatName] = {icon:newIcon, color:newColor};
+    }
+  }
+  saveCfg();
+  buildSidebarCats();
+  renderCatManageList();
+  renderCatColorList();
+  renderCalendar();
+  closeModal('editCatModal');
+  showToast('✅ Категория обновлена');
+}
+
+function toggleEditCatEmoji(ev){
+  ev.stopPropagation();
+  const ep = document.getElementById('editCatEmojiPicker');
+  ep.classList.toggle('open');
+}
+
+function selectEditCatEmoji(e){
+  document.getElementById('editCatEmoji').textContent = e;
+  document.getElementById('editCatEmojiPicker').classList.remove('open');
+}
+
 function deleteCat(name){
-  if(CATS[name]?.builtin) return;
   if(!confirm(`Удалить «${name}»?`)) return;
   delete CATS[name];
   if(cfg.customCats) delete cfg.customCats[name];
   if(cfg.catColors)  delete cfg.catColors[name];
   saveCfg(); buildSidebarCats(); renderCatManageList(); renderCatColorList();
   showToast(`🗑 «${name}» удалена`);
+}
+
+let _editingCatName = null;
+function openEditCat(name){
+  const cat = CATS[name]; if(!cat) return;
+  _editingCatName = name;
+  document.getElementById('editCatOldName').value = name;
+  document.getElementById('editCatName').value = name;
+  document.getElementById('editCatName').disabled = !!cat.builtin;
+  document.getElementById('editCatColor').value = cat.color || '#6c8dfa';
+  document.getElementById('editCatEmoji').textContent = cat.icon || '🏷';
+  document.getElementById('selectedEditEmoji').value = cat.icon || '🏷';
+  // Build emoji picker for edit modal
+  const ep = document.getElementById('editEmojiPicker');
+  if(ep) ep.innerHTML = EMOJI_LIST.map(e=>`<button class="ep-emoji" onclick="selectEditEmoji('${e}')">${e}</button>`).join('');
+  document.getElementById('editCatModal').classList.add('open');
+}
+function selectEditEmoji(e){
+  document.getElementById('editCatEmoji').textContent = e;
+  document.getElementById('selectedEditEmoji').value = e;
+  document.getElementById('editEmojiPicker').classList.remove('open');
+}
+function toggleEditEmojiPicker(ev){
+  ev.stopPropagation();
+  document.getElementById('editEmojiPicker').classList.toggle('open');
+}
+function saveEditCat(){
+  const oldName = _editingCatName;
+  const cat = CATS[oldName]; if(!cat) return;
+  const newName  = cat.builtin ? oldName : document.getElementById('editCatName').value.trim();
+  const newColor = document.getElementById('editCatColor').value;
+  const newIcon  = document.getElementById('selectedEditEmoji').value || cat.icon;
+  if(!newName){ showToast('❌ Введите название'); return; }
+  if(newName !== oldName && CATS[newName]){ showToast('❌ Такая категория уже есть'); return; }
+
+  // Update CATS
+  const updated = {...cat, icon: newIcon, color: newColor};
+  if(newName !== oldName){
+    delete CATS[oldName];
+    // Move expenses to new name
+    allExpenses.forEach(e=>{ if(e.category===oldName) e.category=newName; });
+    save();
+  }
+  CATS[newName] = updated;
+
+  // Update cfg
+  if(!cat.builtin){
+    if(cfg.customCats){
+      delete cfg.customCats[oldName];
+      cfg.customCats[newName] = {icon:newIcon, color:newColor};
+    }
+  }
+  if(!cfg.catColors) cfg.catColors={};
+  if(oldName !== newName) delete cfg.catColors[oldName];
+  cfg.catColors[newName] = newColor;
+
+  saveCfg();
+  buildSidebarCats(); renderCatManageList(); renderCatColorList(); renderCalendar();
+  document.getElementById('editCatModal').classList.remove('open');
+  showToast(`✅ Категория обновлена`);
 }
 
 // ════════════════════════════════════════
@@ -2189,5 +2321,68 @@ document.addEventListener('DOMContentLoaded', function(){ checkSession(); });
 if(document.readyState !== 'loading') checkSession();
 // Note: initEmojiPicker, renderCalendar etc. are called inside startApp()
 
-</script></body>
+</script><!-- EDIT CATEGORY MODAL -->
+<div class="modal-overlay" id="editCatModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>Редактировать категорию <button class="modal-close" onclick="document.getElementById('editCatModal').classList.remove('open')">×</button></h2>
+    <input type="hidden" id="editCatOldName">
+    <input type="hidden" id="selectedEditEmoji" value="🏷">
+    <div class="form-group">
+      <label class="form-label">Название</label>
+      <input class="form-input" id="editCatName" placeholder="Название категории">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Иконка</label>
+        <div style="position:relative">
+          <button style="width:100%;height:46px;border-radius:12px;background:var(--surface);border:1.5px solid var(--border);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;" onclick="toggleEditEmojiPicker(event)">
+            <span id="editCatEmoji">🏷</span>
+          </button>
+          <div class="emoji-picker" id="editEmojiPicker"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Цвет</label>
+        <input type="color" class="cp2" id="editCatColor" value="#6c8dfa" style="width:100%;height:46px;border-radius:12px;">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('editCatModal').classList.remove('open')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveEditCat()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT CATEGORY MODAL -->
+<div class="modal-overlay" id="editCatModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 id="editCatModalTitle">Редактировать категорию <button class="modal-close" onclick="closeModal('editCatModal')">×</button></h2>
+    <div class="form-group">
+      <label class="form-label">Название</label>
+      <input class="form-input" id="editCatNameInput" placeholder="Название категории">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Иконка</label>
+        <div style="position:relative">
+          <button style="width:100%;height:46px;border-radius:12px;background:var(--surface);border:1.5px solid var(--border);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;"
+            onclick="toggleEditCatEmoji(event)"><span id="editCatEmoji">🏷</span></button>
+          <div class="emoji-picker" id="editCatEmojiPicker"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Цвет</label>
+        <input type="color" class="cp2" id="editCatColor" value="#6c8dfa" style="width:100%;height:46px;border-radius:12px;">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('editCatModal')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveEditCat()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+</body>
 </html>
