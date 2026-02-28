@@ -2,260 +2,740 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FinFlow · Админ панель</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="format-detection" content="telephone=no">
+<title>FinFlow</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script>window._fbLoaded = true;</script>
 <style>
 :root {
-  --bg:#0d0f14; --s1:#161a22; --s2:#1e2330; --s3:#252d3d;
-  --border:rgba(255,255,255,0.08); --border2:rgba(255,255,255,0.14);
-  --text:#fff; --text2:#a0aabb; --text3:#5a6478;
-  --accent:#6c8dfa; --red:#ff6b6b; --green:#4ecca3; --orange:#ffa94d;
-  --purple:#b197fc; --pink:#ff87b2;
+  --bg:#0d0f14;--surface:#161a22;--surface2:#1e2330;--surface3:#252d3d;
+  --border:rgba(255,255,255,0.08);--text:#ffffff;--text2:#a0aabb;--text3:#5a6478;
+  --accent:#6c8dfa;--red:#ff6b6b;--green:#4ecca3;--purple:#b197fc;
+  --amount-color:#ffffff;--u1:#6c8dfa;--u2:#ff87b2;--shared:#4ecca3;
+  --nav-h:68px;--safe-bottom:env(safe-area-inset-bottom, 0px);
 }
-*{box-sizing:border-box;margin:0;padding:0;}
-html,body{height:100%;background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);}
-body{display:flex;flex-direction:column;min-height:100vh;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;background:var(--bg);}
+body{font-family:'DM Sans',sans-serif;color:var(--text);display:flex;flex-direction:column;}
 
-/* ── LOGIN SCREEN ── */
-.login-screen{position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;align-items:center;justify-content:center;padding:24px;}
-.login-card{background:var(--s1);border:1px solid var(--border2);border-radius:24px;padding:40px 36px;width:100%;max-width:380px;}
-.login-logo{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
-.login-logo-dot{width:9px;height:9px;border-radius:50%;background:var(--accent);}
-.login-logo-text{font-family:'Syne',sans-serif;font-weight:800;font-size:24px;}
-.login-sub{font-size:12px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:32px;}
-.login-label{font-size:11px;color:var(--text3);font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;}
-.login-input{width:100%;padding:13px 16px;background:var(--s2);border:1.5px solid var(--border);border-radius:12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;outline:none;transition:border-color .2s;margin-bottom:16px;}
-.login-input:focus{border-color:var(--accent);}
-.login-btn{width:100%;padding:14px;border-radius:12px;background:var(--accent);color:#fff;border:none;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all .15s;box-shadow:0 4px 20px rgba(108,141,250,.35);}
-.login-btn:hover{background:#7d9dfb;transform:translateY(-1px);}
-.login-err{font-size:12px;color:var(--red);text-align:center;margin-top:10px;min-height:16px;}
-.glow{position:absolute;top:-30%;left:50%;transform:translateX(-50%);width:500px;height:500px;background:radial-gradient(ellipse,rgba(108,141,250,.1) 0%,transparent 70%);pointer-events:none;}
+/* ── SYNC STATUS BAR ── */
+.sync-bar{display:flex;align-items:center;justify-content:center;gap:6px;padding:5px 16px;font-size:11px;font-weight:600;transition:all .3s;flex-shrink:0;}
+.sync-bar.online{background:rgba(78,204,163,.12);color:var(--green);}
+.sync-bar.offline{background:rgba(255,107,107,.12);color:var(--red);}
+.sync-bar.syncing{background:rgba(108,141,250,.12);color:var(--accent);}
+.sync-bar.setup{background:rgba(255,169,77,.12);color:#ffa94d;}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;}
+.sync-dot.pulse{animation:pulse 1.2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
-/* ── LAYOUT ── */
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;background:var(--s1);border-bottom:1px solid var(--border);flex-shrink:0;}
-.topbar-logo{display:flex;align-items:center;gap:8px;}
-.topbar-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);}
-.topbar-title{font-family:'Syne',sans-serif;font-weight:800;font-size:18px;}
-.topbar-badge{background:rgba(108,141,250,.15);color:var(--accent);font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;letter-spacing:.08em;text-transform:uppercase;}
-.topbar-right{display:flex;align-items:center;gap:12px;}
-.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green);}
-.sync-dot.offline{background:var(--red);}
-.sync-text{font-size:12px;color:var(--text3);}
-.logout-btn{padding:7px 14px;border-radius:8px;background:var(--s2);border:1px solid var(--border);color:var(--text2);font-size:12px;cursor:pointer;transition:all .15s;}
-.logout-btn:hover{border-color:var(--border2);color:var(--text);}
+/* ── TOP HEADER ── */
+.top-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 8px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:20px;display:flex;align-items:center;gap:6px;}
+.logo-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);}
+.header-actions{display:flex;gap:8px;align-items:center;}
+.hbtn{width:38px;height:38px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text2);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;transition:all .15s;}
+.hbtn:active{background:var(--surface3);transform:scale(.94);}
 
-.main{flex:1;padding:28px;overflow-y:auto;max-width:1100px;width:100%;margin:0 auto;}
+/* ── USER SWITCHER ── */
+.user-switcher{display:flex;padding:10px 16px 6px;gap:8px;flex-shrink:0;}
+.usr-pill{flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:14px;background:var(--surface2);border:1.5px solid transparent;cursor:pointer;transition:all .2s;position:relative;}
+.usr-pill.active{background:var(--surface3);border-color:var(--border);}
+.usr-pill:active{transform:scale(.97);}
+.usr-av{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:13px;color:white;flex-shrink:0;}
+.usr-info{flex:1;min-width:0;}
+.usr-name{font-size:12px;font-weight:600;color:var(--text);line-height:1.2;}
+.usr-amt{font-size:10px;color:var(--text3);font-weight:500;}
+.usr-badge{position:absolute;top:4px;right:4px;width:16px;height:16px;border-radius:8px;font-size:9px;font-weight:700;color:white;display:flex;align-items:center;justify-content:center;}
+.usr-sum{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:10px 14px;border-radius:14px;background:var(--surface2);border:1.5px solid transparent;cursor:pointer;transition:all .2s;}
+.usr-sum.active{background:var(--surface3);border-color:var(--shared);}
+.usr-sum:active{transform:scale(.97);}
+.usr-sum-icon{font-size:18px;}
+.usr-sum-info{display:flex;flex-direction:column;}
+.usr-sum-label{font-size:9px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
+.usr-sum-val{font-size:11px;font-weight:700;color:var(--green);font-family:'Syne',sans-serif;}
 
-/* ── SECTION ── */
-.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
-.section-title{font-family:'Syne',sans-serif;font-weight:700;font-size:18px;}
-.section-sub{font-size:12px;color:var(--text3);margin-top:2px;}
-.btn{padding:9px 18px;border-radius:10px;border:none;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px;}
-.btn-primary{background:var(--accent);color:#fff;box-shadow:0 3px 14px rgba(108,141,250,.3);}
-.btn-primary:hover{background:#7d9dfb;transform:translateY(-1px);}
-.btn-danger{background:rgba(255,107,107,.12);color:var(--red);border:1px solid rgba(255,107,107,.2);}
-.btn-danger:hover{background:rgba(255,107,107,.2);}
-.btn-secondary{background:var(--s2);color:var(--text2);border:1px solid var(--border);}
-.btn-secondary:hover{border-color:var(--border2);color:var(--text);}
-.btn-sm{padding:6px 12px;font-size:12px;border-radius:8px;}
+/* ── MAIN CONTENT AREA ── */
+.main-area{flex:1;overflow:hidden;display:flex;flex-direction:column;position:relative;}
 
-/* ── ACCOUNTS GRID ── */
-.accounts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:40px;}
-.account-card{background:var(--s1);border:1px solid var(--border);border-radius:20px;padding:20px;transition:border-color .2s;}
-.account-card:hover{border-color:var(--border2);}
-.account-card-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
-.account-icon{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:#fff;flex-shrink:0;}
-.account-name{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;}
-.account-room{font-size:11px;color:var(--text3);margin-top:2px;font-family:monospace;}
-.account-actions{display:flex;gap:6px;margin-left:auto;}
+/* ── VIEWS ── */
+.view{display:none;flex-direction:column;flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(--nav-h) + var(--safe-bottom) + 10px);}
+.view.active{display:flex;}
 
-/* ── USERS TABLE ── */
-.users-list{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
-.user-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--s2);border-radius:12px;}
-.user-avatar{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:13px;color:#fff;flex-shrink:0;}
-.user-name{font-size:14px;font-weight:500;flex:1;}
-.user-login{font-size:11px;color:var(--text3);font-family:monospace;}
-.role-badge{padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.04em;}
-.role-admin{background:rgba(108,141,250,.15);color:var(--accent);}
-.role-editor{background:rgba(78,204,163,.12);color:var(--green);}
-.role-viewer{background:rgba(90,100,120,.2);color:var(--text3);}
-.add-user-row{display:flex;align-items:center;gap:8px;padding:8px 12px;border:1.5px dashed var(--border);border-radius:12px;cursor:pointer;transition:all .2s;color:var(--text3);font-size:13px;}
-.add-user-row:hover{border-color:var(--accent);color:var(--accent);}
+/* ── CALENDAR VIEW ── */
+.cal-header{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--bg);border-bottom:1px solid var(--border);flex-shrink:0;position:sticky;top:0;z-index:10;}
+.cal-nav-btn{width:36px;height:36px;border-radius:10px;background:var(--surface);border:1px solid var(--border);color:var(--text2);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;flex-shrink:0;}
+.cal-nav-btn:active{background:var(--surface2);transform:scale(.93);}
+.cal-month{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;flex:1;text-align:center;color:var(--text);}
+.cal-today-btn{padding:7px 12px;border-radius:9px;background:transparent;border:1px solid var(--accent);color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.cal-today-btn:active{background:rgba(108,141,250,.15);}
 
-/* ── MODAL ── */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;display:none;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(4px);}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);margin:10px 12px 0;border-radius:14px;overflow:hidden;border:1px solid var(--border);}
+.cal-dow{background:var(--surface);text-align:center;padding:8px 0;font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);}
+.cal-cell{background:var(--surface);min-height:72px;padding:6px 4px 4px;cursor:pointer;transition:background .12s;position:relative;overflow:hidden;}
+.cal-cell:active{background:var(--surface3);}
+.cal-cell.other-month{background:#11141a;}
+.cal-cell.other-month .cell-day{color:var(--text3);}
+.cal-cell.today{background:rgba(108,141,250,.07);}
+.cal-cell.today::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent);}
+.cell-day{font-size:11px;font-weight:500;color:var(--text2);width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;margin-bottom:3px;}
+.cal-cell.today .cell-day{background:var(--accent);color:white;font-weight:700;}
+.cell-exp-dot{display:flex;flex-wrap:wrap;gap:2px;margin-bottom:2px;}
+.cell-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.cell-total{font-size:9px;color:var(--amount-color);font-weight:600;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* Week totals inline */
+.week-totals-row{display:flex;align-items:center;justify-content:flex-end;gap:4px;padding:4px 12px 0;font-size:9px;color:var(--text3);}
+.wt-chip{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-family:'Syne',sans-serif;font-weight:700;font-size:10px;color:var(--amount-color);}
+
+.month-summary{margin:10px 12px;background:var(--surface2);border-radius:12px;border:1px solid var(--accent);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;}
+.ms-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;font-weight:600;}
+.ms-amount{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:var(--amount-color);}
+.ms-curr{font-size:11px;color:var(--text3);}
+
+/* ── FEED / RECENT ── */
+.section-title{padding:14px 16px 8px;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;}
+.expense-card{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s;active:background:var(--surface2);}
+.expense-card:active{background:var(--surface2);}
+.exp-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;}
+.exp-info{flex:1;min-width:0;}
+.exp-name{font-size:14px;font-weight:600;color:var(--text);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.exp-meta{font-size:11px;color:var(--text3);}
+.exp-right{text-align:right;flex-shrink:0;}
+.exp-amt{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--amount-color);}
+.exp-user-tag{font-size:9px;font-weight:700;padding:2px 6px;border-radius:5px;color:white;display:inline-block;margin-top:2px;}
+.new-badge{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-left:4px;vertical-align:middle;animation:pulse 1.5s infinite;}
+
+/* ── CHARTS VIEW ── */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 16px;}
+.stat-card{background:var(--surface);border-radius:14px;border:1px solid var(--border);padding:14px;}
+.stat-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:6px;}
+.stat-value{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:var(--amount-color);}
+.stat-sub{font-size:10px;color:var(--text3);margin-top:3px;}
+.up{color:var(--red);}.down{color:var(--green);}
+
+.chart-card{background:var(--surface);border-radius:14px;border:1px solid var(--border);padding:16px;margin:0 16px 12px;}
+.chart-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:14px;color:var(--text);}
+.bar-chart{display:flex;flex-direction:column;gap:9px;}
+.bar-item{display:flex;align-items:center;gap:10px;}
+.bar-label{font-size:11px;color:var(--text2);width:90px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bar-track{flex:1;height:7px;background:var(--surface2);border-radius:4px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:4px;transition:width .4s;}
+.bar-amount{font-size:11px;font-weight:600;width:75px;text-align:right;color:var(--amount-color);}
+
+.compare-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 16px 12px;}
+.compare-card{background:var(--surface2);border-radius:14px;border:1px solid var(--border);padding:14px;}
+.compare-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.compare-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.compare-name{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;}
+.compare-total{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:var(--amount-color);}
+.compare-sub{font-size:10px;color:var(--text3);margin-top:2px;}
+.versus-bar{height:10px;border-radius:6px;overflow:hidden;background:var(--surface3);display:flex;margin:12px 16px 6px;}
+.versus-fill1{background:var(--u1);height:100%;transition:width .4s;}
+.versus-fill2{background:var(--u2);height:100%;transition:width .4s;}
+.versus-labels{display:flex;justify-content:space-between;font-size:11px;padding:0 16px;}
+
+.donut-wrap{display:flex;align-items:center;gap:16px;}
+.donut-legend{display:flex;flex-direction:column;gap:6px;flex:1;}
+.legend-item{display:flex;align-items:center;gap:7px;font-size:11px;}
+.legend-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.legend-name{color:var(--text2);flex:1;}
+.legend-pct{font-weight:600;color:var(--amount-color);}
+
+/* ── PLAN VIEW ── */
+.plan-header-bar{padding:14px 16px 8px;display:flex;align-items:center;justify-content:space-between;}
+.plan-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;}
+.plan-month{font-size:12px;color:var(--text3);}
+.plan-grid{display:flex;flex-direction:column;gap:8px;padding:0 16px 8px;}
+.plan-card{background:var(--surface);border-radius:14px;border:1px solid var(--border);padding:14px;}
+.plan-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.plan-cat{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--text);}
+.plan-cat-dot{width:8px;height:8px;border-radius:50%;}
+.plan-amounts{display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:7px;}
+.plan-amounts .av{color:var(--amount-color);font-weight:600;}
+.plan-bar-track{height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;}
+.plan-bar-fill{height:100%;border-radius:3px;transition:width .4s;}
+.plan-pct{font-size:10px;color:var(--text3);margin-top:5px;}
+
+/* ── SETTINGS VIEW ── */
+.settings-content{padding:12px 16px;display:flex;flex-direction:column;gap:12px;}
+.settings-section{background:var(--surface);border-radius:14px;border:1px solid var(--border);padding:16px;}
+.settings-section h3{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);}
+.settings-row:last-child{border-bottom:none;padding-bottom:0;}
+.settings-row-label{font-size:13px;color:var(--text);}
+.settings-row-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.color-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);}
+.color-row:last-child{border-bottom:none;}
+.crLeft{display:flex;align-items:center;gap:8px;}
+.cr-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.crRight{display:flex;align-items:center;gap:8px;}
+.cp2{width:34px;height:34px;border-radius:8px;border:2px solid var(--border);cursor:pointer;padding:2px;background:var(--surface2);}
+.creset{font-size:11px;color:var(--text3);cursor:pointer;padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);font-family:'DM Sans',sans-serif;}
+.cat-manage-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
+.cat-manage-row:last-child{border-bottom:none;}
+.cat-manage-name{flex:1;font-size:13px;font-weight:500;color:var(--text);}
+.cat-manage-del{background:rgba(255,107,107,.15);color:var(--red);border:1px solid rgba(255,107,107,.3);border-radius:7px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.cat-drag-handle{font-size:18px;color:var(--text3);cursor:grab;padding:0 6px;user-select:none;flex-shrink:0;letter-spacing:-2px;}
+.cat-drag-handle:active{cursor:grabbing;}
+.cat-manage-row[draggable="true"]{transition:opacity .15s;}
+.cat-manage-row.drag-over{background:rgba(108,141,250,0.12)!important;border-color:rgba(108,141,250,0.4)!important;}
+.cat-manage-del.default-cat{background:var(--surface3);color:var(--text3);border-color:var(--border);opacity:.6;}
+.new-cat-form{background:var(--surface2);border-radius:12px;border:1px solid var(--border);padding:14px;margin-top:4px;}
+.swatch-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;}
+.sw{width:32px;height:32px;border-radius:8px;cursor:pointer;border:2px solid transparent;transition:all .15s;}
+.sw.selected{border-color:white;transform:scale(1.1);}
+.preview-box{margin-top:14px;padding:12px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);}
+.preview-label{font-size:11px;color:var(--text3);margin-bottom:6px;}
+.pv-amt{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:var(--amount-color);}
+.color-palette{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;}
+.cp-swatch{width:24px;height:24px;border-radius:6px;cursor:pointer;border:2px solid transparent;}
+.cp-swatch.selected{border-color:white;}
+
+/* Firebase setup card */
+.firebase-setup{background:var(--surface);border-radius:14px;border:1.5px solid #ffa94d;padding:18px;}
+.firebase-setup h3{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:#ffa94d;margin-bottom:12px;}
+.firebase-status{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;margin-bottom:14px;font-size:13px;font-weight:500;}
+.firebase-status.connected{background:rgba(78,204,163,.12);color:var(--green);}
+.firebase-status.disconnected{background:rgba(255,107,107,.12);color:var(--red);}
+.firebase-steps{font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:14px;}
+.firebase-steps a{color:var(--accent);}
+.firebase-steps code{background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:11px;}
+.btn-connect{width:100%;padding:12px;border-radius:10px;background:var(--accent);color:white;border:none;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;margin-top:6px;}
+.btn-connect:active{background:#5579e8;transform:scale(.98);}
+.btn-disconnect{width:100%;padding:10px;border-radius:10px;background:rgba(255,107,107,.15);color:var(--red);border:1px solid rgba(255,107,107,.3);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;margin-top:8px;}
+
+/* ── BOTTOM NAV ── */
+.bottom-nav{height:var(--nav-h);background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:stretch;padding-bottom:var(--safe-bottom);flex-shrink:0;position:relative;z-index:20;}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;transition:all .15s;padding-top:4px;}
+.nav-item:active{background:var(--surface2);}
+.nav-icon{font-size:20px;line-height:1;}
+.nav-label{font-size:9px;font-weight:600;letter-spacing:.04em;color:var(--text3);text-transform:uppercase;transition:color .15s;}
+.nav-item.active .nav-label{color:var(--accent);}
+.nav-item.active .nav-icon{transform:translateY(-1px);}
+.nav-add{flex:0 0 64px;display:flex;align-items:center;justify-content:center;padding-top:4px;}
+.nav-add-btn{width:50px;height:50px;border-radius:16px;background:var(--accent);color:white;display:flex;align-items:center;justify-content:center;font-size:26px;line-height:1;cursor:pointer;box-shadow:0 4px 20px rgba(108,141,250,.4);transition:all .15s;border:none;margin-top:-10px;}
+.nav-add-btn:active{transform:scale(.92);box-shadow:0 2px 10px rgba(108,141,250,.3);}
+
+/* ── FAB (desktop only) ── */
+.fab{display:none;}
+
+/* ── MODALS ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);}
 .modal-overlay.open{display:flex;}
-.modal{background:var(--s1);border:1px solid var(--border2);border-radius:20px;padding:28px;width:100%;max-width:400px;}
-.modal-title{font-family:'Syne',sans-serif;font-weight:700;font-size:18px;margin-bottom:6px;}
-.modal-sub{font-size:13px;color:var(--text3);margin-bottom:24px;}
-.form-group{margin-bottom:16px;}
-.form-label{font-size:11px;color:var(--text3);font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;display:block;}
-.form-input{width:100%;padding:12px 14px;background:var(--s2);border:1.5px solid var(--border);border-radius:11px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .2s;}
-.form-input:focus{border-color:var(--accent);}
-.form-row{display:flex;gap:10px;}
-.form-row .form-group{flex:1;}
-.role-select{width:100%;padding:12px 14px;background:var(--s2);border:1.5px solid var(--border);border-radius:11px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;cursor:pointer;}
-.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:24px;}
-.color-picker-row{display:flex;gap:8px;flex-wrap:wrap;}
-.color-dot{width:28px;height:28px;border-radius:8px;cursor:pointer;border:2px solid transparent;transition:all .15s;}
-.color-dot.selected{border-color:#fff;transform:scale(1.15);}
+.modal{background:var(--surface);border-radius:22px 22px 0 0;width:100%;max-width:600px;padding:20px 20px calc(20px + var(--safe-bottom));animation:slideUp .25s ease;max-height:92vh;overflow-y:auto;}
+@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-handle{width:36px;height:4px;background:var(--surface3);border-radius:2px;margin:0 auto 16px;}
+.modal h2{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;color:var(--text);}
+.modal-close{width:30px;height:30px;border-radius:9px;background:var(--surface2);border:none;color:var(--text2);cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;}
+.form-group{margin-bottom:14px;}
+.form-label{font-size:12px;font-weight:500;color:var(--text2);margin-bottom:6px;display:block;}
+.form-input,.form-select{width:100%;padding:12px 14px;background:var(--surface2);border:1.5px solid var(--border);border-radius:12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;outline:none;-webkit-appearance:none;}
+.form-input:focus,.form-select:focus{border-color:var(--accent);}
+.form-select option{background:var(--surface2);color:var(--text);}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.btn{padding:13px 20px;border-radius:12px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all .15s;border:none;width:100%;}
+.btn:active{transform:scale(.97);}
+.btn-primary{background:var(--accent);color:white;}
+.btn-secondary{background:var(--surface2);color:var(--text2);border:1px solid var(--border);}
+.btn-green{background:rgba(78,204,163,.2);color:var(--green);border:1px solid rgba(78,204,163,.4);}
+.btn-danger{background:rgba(255,107,107,.15);color:var(--red);border:1px solid rgba(255,107,107,.3);}
+.modal-footer{display:flex;gap:10px;margin-top:18px;}
+.modal-footer .btn{flex:1;}
 
-/* ── STATS BAR ── */
-.stats-bar{display:flex;gap:16px;margin-bottom:32px;flex-wrap:wrap;}
-.stat-card{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:16px 20px;flex:1;min-width:140px;}
-.stat-num{font-family:'Syne',sans-serif;font-weight:800;font-size:28px;}
-.stat-label{font-size:12px;color:var(--text3);margin-top:2px;}
-
-/* ── EMPTY STATE ── */
-.empty{text-align:center;padding:40px 20px;color:var(--text3);}
-.empty-icon{font-size:40px;margin-bottom:12px;}
-.empty-text{font-size:14px;}
+/* ── BOTTOM SHEET (expense detail) ── */
+.bottom-sheet{display:none;position:fixed;inset:0;z-index:90;align-items:flex-end;justify-content:center;}
+.bottom-sheet.open{display:flex;}
+.bs-overlay{position:absolute;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(3px);}
+.bs-content{background:var(--surface);border-radius:22px 22px 0 0;width:100%;max-width:600px;padding:16px 20px calc(20px + var(--safe-bottom));animation:slideUp .2s ease;position:relative;z-index:1;}
+.bs-handle{width:36px;height:4px;background:var(--surface3);border-radius:2px;margin:0 auto 14px;}
+.det-name{font-family:'Syne',sans-serif;font-weight:700;font-size:18px;margin-bottom:4px;}
+.det-cat{font-size:12px;margin-bottom:12px;}
+.det-amt{font-family:'Syne',sans-serif;font-size:32px;font-weight:800;margin-bottom:6px;color:var(--amount-color);}
+.det-meta{font-size:12px;color:var(--text3);}
+.det-note{font-size:13px;color:var(--text2);margin-top:6px;font-style:italic;}
+.det-user{font-size:12px;font-weight:700;padding:3px 10px;border-radius:7px;color:white;display:inline-block;margin-top:8px;}
+.det-actions{display:flex;gap:10px;margin-top:16px;}
+.det-btn{flex:1;padding:12px;border-radius:12px;border:none;cursor:pointer;font-size:14px;font-family:'DM Sans',sans-serif;font-weight:600;}
+.det-btn:active{transform:scale(.96);}
 
 /* ── TOAST ── */
-.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--s1);border:1px solid var(--border2);border-radius:12px;padding:10px 20px;font-size:13px;font-weight:500;transition:transform .3s;z-index:9999;white-space:nowrap;}
-.toast.show{transform:translateX(-50%) translateY(0);}
+.toast{position:fixed;top:0;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--surface);border:1px solid var(--border);color:var(--text);font-weight:600;padding:12px 20px;border-radius:14px;font-size:13.5px;z-index:999;opacity:0;transition:all .3s;pointer-events:none;max-width:90vw;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.4);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(12px);}
 
-@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-.fade-in{animation:fadeIn .4s ease both;}
+/* ── EMOJI PICKER ── */
+.emoji-picker{display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px;z-index:200;box-shadow:0 20px 60px rgba(0,0,0,.7);flex-wrap:wrap;gap:4px;max-width:280px;}
+.emoji-picker.open{display:flex;}
+.ep-emoji{font-size:22px;cursor:pointer;padding:6px;border-radius:7px;transition:background .1s;border:none;background:transparent;min-width:38px;text-align:center;}
+.ep-emoji:active{background:var(--surface2);}
+
+/* ── DESKTOP OVERRIDES ── */
+@media(min-width:768px){
+  body{flex-direction:row;}
+  .bottom-nav{display:none;}
+  .fab{display:flex;position:fixed;bottom:28px;right:28px;z-index:30;}
+  .fab-btn{width:56px;height:56px;border-radius:18px;background:var(--accent);color:white;display:flex;align-items:center;justify-content:center;font-size:28px;cursor:pointer;box-shadow:0 6px 24px rgba(108,141,250,.45);border:none;transition:all .15s;}
+  .fab-btn:hover{background:#5579e8;transform:scale(1.06);}
+
+  .sidebar-desktop{width:220px;min-width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 0;overflow-y:auto;height:100vh;}
+  .sidebar-logo-d{font-family:'Syne',sans-serif;font-weight:800;font-size:20px;padding:0 18px 18px;display:flex;align-items:center;gap:8px;}
+  .sidebar-logo-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);}
+  .sd-label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);padding:0 8px;margin-bottom:6px;}
+  .sd-section{padding:0 10px;margin-bottom:8px;}
+  .sd-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:400;color:var(--text2);transition:all .15s;}
+  .sd-item:hover{background:var(--surface2);color:var(--text);}
+  .sd-item.active{background:var(--surface3);color:var(--text);font-weight:500;}
+  .sd-icon{font-size:16px;width:20px;text-align:center;}
+  .sd-bottom{margin-top:auto;padding:0 10px;border-top:1px solid var(--border);padding-top:14px;}
+  .sd-add{display:flex;align-items:center;gap:8px;padding:8px 18px;font-size:12.5px;color:var(--text3);cursor:pointer;}
+  .sd-add:hover{color:var(--accent);}
+
+  .app-body{flex:1;display:flex;flex-direction:column;overflow:hidden;height:100vh;}
+  .sync-bar{flex-shrink:0;}
+  .top-header{flex-shrink:0;}
+  .user-switcher{padding:10px 20px 6px;}
+  .main-area{flex:1;overflow:hidden;}
+  .view{padding-bottom:10px;}
+  .modal-overlay{align-items:center;}
+  .modal{border-radius:18px;max-width:480px;padding:26px;}
+  @keyframes slideUp{from{opacity:0;transform:scale(.96) translateY(10px)}to{opacity:1;transform:none}}
+  .bottom-sheet{align-items:center;}
+  .bs-content{border-radius:16px;max-width:440px;padding:24px;}
+  .cal-grid{margin:10px 20px 0;}
+  .month-summary{margin:10px 20px;}
+  .week-totals-row{padding:4px 20px 0;}
+  .chart-card{margin:0 20px 12px;}
+  .compare-row{padding:0 20px 12px;margin:0;}
+  .versus-bar{margin:12px 20px 6px;}
+  .versus-labels{padding:0 20px;}
+  .settings-content{padding:12px 20px;}
+  .stats-grid{padding:12px 20px;}
+  .plan-grid{padding:0 20px 8px;}
+  .section-title{padding:14px 20px 8px;}
+  .expense-card{padding:12px 20px;}
+  .cal-header{padding:10px 20px;}
+  .plan-header-bar{padding:14px 20px 8px;}
+  .cal-cell{min-height:90px;}
+}
+
+/* ── iOS TOUCH FIX ── */
+/* iOS Safari requires cursor:pointer on non-button elements for onclick to fire */
+.nav-item,.usr-pill,.usr-sum,.cal-cell,.expense-card,.cal-nav-btn,.hbtn,
+.sd-item,.user-tab,.sidebar-item,.cat-manage-row,.color-row,.settings-row,
+.plan-card,.det-btn,.ep-emoji,.cp-swatch,.sw,.cp2,.creset,.sidebar-add,
+.sd-add,.cell-exp-dot,.cal-today-btn,.week-totals-row,.month-summary{
+  cursor:pointer;
+}
+/* Make sure nothing blocks touches */
+*{-webkit-user-select:none;user-select:none;}
+input,textarea,select{-webkit-user-select:text;user-select:text;}
+
+/* ── UTILITIES ── */
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:2px;}
 </style>
 </head>
-<body>
+<body ontouchstart="">
+<!-- LOGIN SCREEN — Multi-Account -->
+<div id="lockScreen" style="display:flex;position:fixed;inset:0;z-index:9999;background:#0d0f14;flex-direction:column;align-items:center;justify-content:center;padding:24px;overflow:hidden;">
 
-<!-- LOGIN -->
-<div id="loginScreen" class="login-screen">
-  <div class="glow"></div>
-  <div class="login-card fade-in">
-    <div class="login-logo"><div class="login-logo-dot"></div><div class="login-logo-text">FinFlow</div></div>
-    <div class="login-sub">Панель администратора</div>
-    <div style="font-size:11px;color:#5a6478;margin-bottom:20px;background:#1e2330;border-radius:8px;padding:8px 12px;">
-      🔐 Первый вход: пароль <b style="color:#a0aabb;">setup1234</b><br>
-      Смените его сразу после входа
-    </div>
-    <div class="login-label">Мастер-пароль</div>
-    <input id="masterInput" class="login-input" type="password" placeholder="Введите мастер-пароль"
-      onkeydown="if(event.key==='Enter')adminLogin()">
-    <button class="login-btn" onclick="adminLogin()">Войти в панель</button>
-    <div id="loginErr" class="login-err"></div>
-  </div>
-</div>
+  <!-- Glow background -->
+  <div style="position:absolute;top:-20%;left:50%;transform:translateX(-50%);width:600px;height:600px;background:radial-gradient(ellipse,rgba(108,141,250,0.12) 0%,transparent 70%);pointer-events:none;animation:glowPulse 4s ease-in-out infinite;"></div>
+  <div style="position:absolute;bottom:-10%;right:-10%;width:400px;height:400px;background:radial-gradient(ellipse,rgba(255,135,178,0.06) 0%,transparent 70%);pointer-events:none;animation:glowPulse 6s ease-in-out infinite reverse;"></div>
 
-<!-- APP -->
-<div id="adminApp" style="display:none;flex-direction:column;height:100vh;">
-
-  <!-- Topbar -->
-  <div class="topbar">
-    <div class="topbar-logo">
-      <div class="topbar-dot"></div>
-      <div class="topbar-title">FinFlow</div>
-      <div class="topbar-badge">Superadmin</div>
+  <!-- Logo -->
+  <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:36px;animation:logoIn .8s cubic-bezier(.16,1,.3,1) both;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <div style="width:10px;height:10px;border-radius:50%;background:#6c8dfa;animation:dotPulse 2s ease-in-out infinite;box-shadow:0 0 16px rgba(108,141,250,0.8);"></div>
+      <span style="font-family:'Syne',sans-serif;font-weight:800;font-size:36px;letter-spacing:-1px;color:#fff;">FinFlow</span>
     </div>
-    <div class="topbar-right">
-      <div class="sync-dot" id="syncDot"></div>
-      <div class="sync-text" id="syncText">Подключение...</div>
-      <button class="logout-btn" onclick="adminLogout()">Выйти</button>
-    </div>
+    <span style="font-size:12px;color:#5a6478;letter-spacing:.14em;text-transform:uppercase;font-weight:500;">Семейный бюджет</span>
   </div>
 
-  <div class="main">
-
-    <!-- System settings -->
-    <div id="systemSection" style="background:var(--s1);border:1px solid var(--border);border-radius:20px;padding:20px 24px;margin-bottom:28px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:gap;">
-        <div>
-          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;margin-bottom:3px;">⚙️ Системные настройки</div>
-          <div style="font-size:12px;color:var(--text3);">Мастер-пароль хранится в Firebase — можно изменить в любой момент</div>
-        </div>
-        <button class="btn btn-secondary" style="margin-top:8px;" onclick="openChangeMasterPass()">🔑 Изменить мастер-пароль</button>
+  <!-- STEP 1: Account list -->
+  <div id="stepAccounts" style="width:100%;max-width:340px;animation:formIn .9s cubic-bezier(.16,1,.3,1) .12s both;">
+    <div style="font-size:11px;color:#5a6478;text-align:center;letter-spacing:.12em;text-transform:uppercase;font-weight:600;margin-bottom:16px;" id="step1Label">Выберите аккаунт</div>
+    <div id="accountsList">
+      <div style="text-align:center;padding:32px 0;color:#5a6478;font-size:13px;">
+        <div style="font-size:28px;margin-bottom:10px;">⏳</div>
+        Загрузка аккаунтов...
       </div>
     </div>
+  </div>
 
-    <!-- Stats -->
-    <div class="stats-bar" id="statsBar">
-      <div class="stat-card"><div class="stat-num" id="statAccounts">—</div><div class="stat-label">Аккаунтов</div></div>
-      <div class="stat-card"><div class="stat-num" id="statUsers">—</div><div class="stat-label">Пользователей</div></div>
-      <div class="stat-card"><div class="stat-num" id="statAdmins">—</div><div class="stat-label">Администраторов</div></div>
+  <!-- STEP 2: User list (inside account) -->
+  <div id="stepUsers" style="display:none;width:100%;max-width:340px;">
+    <div onclick="goToStep(1)" style="display:flex;align-items:center;gap:6px;color:#5a6478;font-size:13px;margin-bottom:20px;cursor:pointer;width:fit-content;transition:color .15s;" onmouseover="this.style.color='#a0aabb'" onmouseout="this.style.color='#5a6478'">
+      <span style="font-size:18px;">‹</span> Назад
+    </div>
+    <div id="selectedAccBadge" style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:#1e2330;border-radius:14px;border:1px solid rgba(255,255,255,0.07);margin-bottom:20px;">
+      <div id="accBadgeAvatar" style="width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:15px;color:#fff;"></div>
+      <div id="accBadgeName" style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:#fff;"></div>
+    </div>
+    <div style="font-size:11px;color:#5a6478;letter-spacing:.12em;text-transform:uppercase;font-weight:600;margin-bottom:12px;">Кто вы?</div>
+    <div id="usersList"></div>
+  </div>
+
+  <!-- STEP 3: Password entry -->
+  <div id="stepPassword" style="display:none;width:100%;max-width:340px;">
+    <div onclick="goToStep(2)" style="display:flex;align-items:center;gap:6px;color:#5a6478;font-size:13px;margin-bottom:20px;cursor:pointer;width:fit-content;transition:color .15s;" onmouseover="this.style.color='#a0aabb'" onmouseout="this.style.color='#5a6478'">
+      <span style="font-size:18px;">‹</span> Назад
     </div>
 
-    <!-- Accounts -->
-    <div class="section-header">
+    <!-- Selected user card -->
+    <div id="selUserCard" style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:#1e2330;border:1px solid rgba(255,255,255,0.07);border-radius:16px;margin-bottom:24px;">
+      <div id="selUserAvatar" style="width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:18px;color:#fff;flex-shrink:0;"></div>
       <div>
-        <div class="section-title">Аккаунты</div>
-        <div class="section-sub">Каждый аккаунт — отдельный бюджет с изолированными данными</div>
+        <div id="selUserName" style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;color:#fff;"></div>
+        <div id="selUserMeta" style="font-size:11px;color:#5a6478;margin-top:2px;"></div>
       </div>
-      <button class="btn btn-primary" onclick="openCreateAccount()">＋ Новый аккаунт</button>
-    </div>
-    <div style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;">
-      <button class="btn btn-secondary" onclick="resetAllAccountsCategories()" style="font-size:13px">🔄 Скинути категорії всіх акаунтів</button>
-    </div>
-    <div class="accounts-grid" id="accountsGrid">
-      <div class="empty"><div class="empty-icon">📂</div><div class="empty-text">Загрузка...</div></div>
+      <div style="margin-left:auto;font-size:18px;opacity:.3;">🔒</div>
     </div>
 
+    <!-- PIN dots -->
+    <div id="pinDots" style="display:flex;justify-content:center;gap:14px;margin-bottom:16px;min-height:20px;"></div>
+
+    <!-- Password input — always visible, triggers keyboard on mobile -->
+    <div style="position:relative;margin-bottom:14px;" id="lockInputWrap">
+      <input id="lockInput" type="password" inputmode="text" maxlength="20"
+        autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')checkPassword()"
+        oninput="updatePinDots(this.value)"
+        placeholder="Введите пароль"
+        onfocus="this.parentElement.style.boxShadow='0 0 0 3px rgba(108,141,250,0.3)';this.style.borderColor='#6c8dfa';"
+        onblur="this.parentElement.style.boxShadow='none';this.style.borderColor='rgba(108,141,250,0.4)';"
+        style="width:100%;padding:16px 48px 16px 18px;background:#1e2330;border:2px solid rgba(108,141,250,0.4);border-radius:14px;color:#fff;font-family:'DM Sans',sans-serif;font-size:16px;outline:none;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none;appearance:none;">
+      <span style="position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none;opacity:.4;">🔑</span>
+    </div>
+    <!-- lockTapArea kept as empty placeholder for JS compatibility -->
+    <div id="lockTapArea" style="display:none;"></div>
+
+    <button onclick="checkPassword()"
+      style="width:100%;padding:15px;border-radius:14px;background:#6c8dfa;color:#fff;border:none;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 6px 24px rgba(108,141,250,.35);transition:all .15s;"
+      onmousedown="this.style.transform='scale(.97)'" onmouseup="this.style.transform=''"
+      ontouchstart="this.style.transform='scale(.97)'" ontouchend="this.style.transform=''">
+      Войти →
+    </button>
+
+    <div id="lockError" style="font-size:12px;color:#ff6b6b;text-align:center;margin-top:12px;min-height:18px;"></div>
+    <div onclick="showChangePassword()" style="font-size:11px;color:#3a4052;text-align:center;margin-top:18px;cursor:pointer;transition:color .15s;" onmouseover="this.style.color='#6c8dfa'" onmouseout="this.style.color='#3a4052'">Изменить пароль</div>
+  </div>
+
+</div>
+
+<style>
+@keyframes logoIn   {from{opacity:0;transform:translateY(-24px)}to{opacity:1;transform:none}}
+@keyframes formIn   {from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:none}}
+@keyframes glowPulse{0%,100%{opacity:.7;transform:translateX(-50%) scale(1)}50%{opacity:1;transform:translateX(-50%) scale(1.06)}}
+@keyframes dotPulse {0%,100%{box-shadow:0 0 10px rgba(108,141,250,.6)}50%{box-shadow:0 0 24px rgba(108,141,250,1)}}
+@keyframes pinBounce{0%{transform:scale(0)}60%{transform:scale(1.3)}100%{transform:scale(1)}}
+@keyframes lockShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+@keyframes stepIn   {from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
+@keyframes stepOut  {from{opacity:1}to{opacity:0;transform:translateX(-16px)}}
+</style>
+
+<!-- DESKTOP SIDEBAR -->
+<div class="sidebar-desktop" id="sidebarDesktop" style="display:none">
+  <div class="sidebar-logo-d"><div class="sidebar-logo-dot"></div>FinFlow</div>
+  <div class="sd-section">
+    <div class="sd-label" data-i18n="s_users_short">Користувачі</div>
+    <div id="sdUsersList">
+      <div class="sd-item" id="sdTab-shared" onclick="setActiveUser('shared')">
+        <div style="width:28px;height:28px;border-radius:8px;background:var(--shared);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:white">∑</div>
+        <div><div style="font-size:13px;font-weight:600" data-i18n="shared">Спільні</div><div id="sdBadge-shared" style="font-size:10px;color:var(--text3)">0</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="sd-section" style="margin-top:6px">
+    <div class="sd-label" data-i18n="sections_label">Розділи</div>
+    <div class="sd-item active" data-view="calendar" onclick="switchView('calendar')"><span class="sd-icon">📅</span><span data-i18n="calendar">Календар</span></div>
+    <div class="sd-item" data-view="charts" onclick="switchView('charts')"><span class="sd-icon">📊</span><span data-i18n="analytics">Аналітика</span></div>
+    <div class="sd-item" data-view="plan" onclick="switchView('plan')"><span class="sd-icon">🎯</span><span data-i18n="plan">План</span></div>
+  </div>
+  <div class="sd-section" style="margin-top:6px">
+    <div class="sd-label" data-i18n="cats_label">Категорії</div>
+    <div id="sdCatList"></div>
+  </div>
+  <div class="sd-add" onclick="openAddModal()"><span data-i18n="add_expense_btn">＋ Додати витрату</span></div>
+  <div class="sd-bottom">
+    <div class="sd-item" data-view="settings" onclick="switchView('settings')"><span class="sd-icon">⚙️</span><span data-i18n="settings">Налаштування</span></div>
   </div>
 </div>
 
-<!-- MODAL: Create Account -->
-<div class="modal-overlay" id="modalAccount">
-  <div class="modal">
-    <div class="modal-title" id="modalAccountTitle">Новый аккаунт</div>
-    <div class="modal-sub">Аккаунт — это отдельный изолированный бюджет</div>
-    <div class="form-group">
-      <label class="form-label">ID аккаунта (латиница, без пробелов)</label>
-      <input class="form-input" id="accId" placeholder="например: family-bogdan" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'')">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Название аккаунта</label>
-      <input class="form-input" id="accName" placeholder="Семья Богдана">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Цвет аккаунта</label>
-      <div class="color-picker-row" id="accColorPicker"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal('modalAccount')">Отмена</button>
-      <button class="btn btn-primary" onclick="saveAccount()">Создать</button>
+<!-- APP BODY -->
+<div class="app-body" id="appBody" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+
+  <!-- SYNC STATUS BAR -->
+  <div class="sync-bar setup" id="syncBar">
+    <div class="sync-dot"></div>
+    <span id="syncText">Локальный режим — настройте Firebase для синхронизации</span>
+  </div>
+
+  <!-- TOP HEADER -->
+  <div class="top-header">
+    <div class="logo"><div class="logo-dot"></div>FinFlow</div>
+    <div class="header-actions">
+      <div class="hbtn" id="syncStatusBtn" onclick="switchView('settings')" title="Синхронизация">☁️</div>
+      <div class="hbtn" onclick="openAddModal()">＋</div>
     </div>
   </div>
-</div>
 
-<!-- MODAL: Add/Edit User -->
-<div class="modal-overlay" id="modalUser">
-  <div class="modal">
-    <div class="modal-title" id="modalUserTitle">Добавить пользователя</div>
-    <div class="modal-sub" id="modalUserSub">В аккаунт</div>
-    <div class="form-group">
-      <label class="form-label">Имя</label>
-      <input class="form-input" id="userName" placeholder="Богдан">
+  <!-- USER SWITCHER — populated dynamically in startApp() -->
+  <div class="user-switcher" id="userSwitcher">
+  </div>
+
+  <!-- MAIN AREA -->
+  <div class="main-area">
+
+    <!-- CALENDAR VIEW -->
+    <div class="view active" id="viewCalendar">
+      <div class="cal-header">
+        <button class="cal-nav-btn" onclick="prevMonth()">‹</button>
+        <div class="cal-month" id="calMonthLabel"></div>
+        <button class="cal-nav-btn" onclick="nextMonth()">›</button>
+        <button class="cal-today-btn" onclick="goToToday()">Сегодня</button>
+      </div>
+      <div id="calContainer"></div>
+      <div class="section-title">Недавние расходы</div>
+      <div id="recentList"></div>
     </div>
+
+    <!-- CHARTS VIEW -->
+    <div class="view" id="viewCharts">
+      <div class="stats-grid" id="statsGrid"></div>
+      <div id="compareSection"></div>
+      <div class="chart-card"><div class="chart-title">По категориям</div><div class="bar-chart" id="barChart"></div></div>
+      <div class="chart-card"><div class="chart-title">Распределение</div><div class="donut-wrap"><svg width="120" height="120" id="donutSvg"></svg><div class="donut-legend" id="donutLegend"></div></div></div>
+      <div class="chart-card"><div class="chart-title">Динамика — 6 мес.</div><svg width="100%" height="160" id="trendSvg" style="overflow:visible"></svg></div>
+    </div>
+
+    <!-- PLAN VIEW -->
+    <div class="view" id="viewPlan">
+      <div class="plan-header-bar">
+        <div class="plan-title">План расходов</div>
+        <div class="plan-month" id="planMonthLabel"></div>
+      </div>
+      <div class="plan-grid" id="planGrid"></div>
+    </div>
+
+    <!-- SETTINGS VIEW -->
+    <div class="view" id="viewSettings">
+      <div class="settings-content">
+        <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;padding:4px 0 10px" data-i18n="settings_title">⚙️ Налаштування</div>
+
+        <!-- FIREBASE SYNC -->
+        <div class="firebase-setup" id="firebaseSetup">
+          <h3>☁️ Синхронизация в реальном времени</h3>
+          <div class="firebase-status disconnected" id="fbStatus">
+            <span>●</span>&nbsp;Не подключено
+          </div>
+          <div class="firebase-steps" id="fbSteps">
+            База данных уже настроена и подключается автоматически. Оба пользователя работают с одной и той же базой.<br><br>
+            Если нужно подключить <strong>свою</strong> базу данных — замените URL ниже и нажмите «Подключить».
+          </div>
+          <div class="form-group">
+            <label class="form-label">URL Firebase Realtime Database</label>
+            <input class="form-input" id="fbUrl" placeholder="https://family-budget-32149-default-rtdb.europe-west1.firebasedatabase.app" style="font-size:12px">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Название комнаты (одинаковое у обоих пользователей)</label>
+            <input class="form-input" id="fbRoom" placeholder="my-budget" style="font-size:13px">
+          </div>
+          <button class="btn-connect" onclick="connectFirebase()">🔗 Подключить и синхронизировать</button>
+          <button class="btn-disconnect" id="btnDisconnect" style="display:none" onclick="disconnectFirebase()">✕ Отключить синхронизацию</button>
+        </div>
+
+        <!-- USERS -->
+        <div class="settings-section">
+          <h3 data-i18n="s_users">👤 Користувачі</h3>
+          <div id="userSettingsList"></div>
+        </div>
+
+
+        <!-- CATEGORIES -->
+        <div class="settings-section">
+          <h3 data-i18n="s_cats">🏷 Категорії</h3>
+          <div class="cat-manage-list" id="catManageList"></div>
+          <div class="new-cat-form">
+            <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:12px" data-i18n="new_cat">➕ Нова категорія</div>
+            <div class="form-row" style="margin-bottom:10px">
+              <div class="form-group" style="margin:0"><label class="form-label">Название</label><input class="form-input" id="newCatName" placeholder="Спорт" style="font-size:13px"></div>
+              <div class="form-group" style="margin:0;position:relative"><label class="form-label">Иконка</label><button style="width:100%;height:46px;border-radius:12px;background:var(--surface);border:1.5px solid var(--border);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;" id="emojiPickerBtn" onclick="toggleEmojiPicker(event)"><span id="selectedEmoji">🏷</span></button><div class="emoji-picker" id="emojiPicker"></div></div>
+            </div>
+            <div class="form-group"><label class="form-label">Цвет</label><input type="color" class="cp2" id="newCatColor" value="#a78bfa" style="width:100%;height:44px;border-radius:12px;"></div>
+            <div><label class="form-label">Быстрый цвет</label><div class="color-palette" id="newCatColorPalette"></div></div>
+            <button class="btn btn-green" style="margin-top:12px" onclick="addCustomCat()" data-i18n="add_cat">+ Додати</button>
+          </div>
+        </div>
+
+        <!-- AMOUNT COLOR -->
+        <div class="settings-section">
+          <h3 data-i18n="s_amtcolor">💰 Колір сум</h3>
+          <div style="display:flex;gap:10px;align-items:flex-end">
+            <div class="form-group" style="margin:0;flex:1"><label class="form-label">HEX</label><input class="form-input" id="amtHex" placeholder="#ffffff" oninput="syncAmtHex(this.value)"></div>
+            <div><label class="form-label">Цвет</label><input type="color" class="cp2" id="amtPicker" oninput="syncAmtPicker(this.value)" style="width:46px;height:46px;border-radius:10px;"></div>
+          </div>
+          <div class="swatch-row">
+            <div class="sw" style="background:#ffffff;border:1px solid rgba(255,255,255,.2)" onclick="setAmtColor('#ffffff')"></div>
+            <div class="sw" style="background:#4ecca3" onclick="setAmtColor('#4ecca3')"></div>
+            <div class="sw" style="background:#6c8dfa" onclick="setAmtColor('#6c8dfa')"></div>
+            <div class="sw" style="background:#ffd43b" onclick="setAmtColor('#ffd43b')"></div>
+            <div class="sw" style="background:#ff87b2" onclick="setAmtColor('#ff87b2')"></div>
+            <div class="sw" style="background:#ffa94d" onclick="setAmtColor('#ffa94d')"></div>
+            <div class="sw" style="background:#b197fc" onclick="setAmtColor('#b197fc')"></div>
+          </div>
+          <div class="preview-box"><div class="preview-label" data-i18n="preview">Попередній перегляд</div><div class="pv-amt" id="pvAmt">28 450 €</div></div>
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <button class="btn btn-primary" style="font-size:13px" onclick="saveAmtColor()" data-i18n="apply">✅ Застосувати</button>
+            <button class="btn btn-secondary" style="font-size:13px" onclick="setAmtColor('#ffffff')" data-i18n="reset">↺ Скинути</button>
+          </div>
+        </div>
+
+        <!-- CURRENCY -->
+        <div class="settings-section">
+          <h3 data-i18n="s_currency">💱 Валюта</h3>
+          <div class="form-group"><label class="form-label">Валюта</label>
+            <select class="form-select" id="settingCurrency" onchange="updateAmtPreview(document.getElementById('amtPicker').value||amountColor)">
+              <option value="€">€ Евро</option>
+              <option value="$">$ Доллар</option>
+              <option value="£">£ Фунт</option>
+              <option value="₴">₴ Гривна</option>
+              <option value="₸">₸ Тенге</option>
+              <option value="zł">zł Злотый</option>
+              <option value="₣">₣ Франк</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" style="font-size:13px" onclick="saveCurrencySetting()" data-i18n="save">Зберегти</button>
+        </div>
+
+        <!-- LANGUAGE -->
+        <div class="settings-section">
+          <h3 id="s_lang_h">🌐 Мова інтерфейсу</h3>
+          <div class="form-group">
+            <label class="form-label" id="s_lang_lbl">Мова</label>
+            <select class="form-select" id="settingLang">
+              <option value="uk">🇺🇦 Українська</option>
+              <option value="ru">🇷🇺 Русский</option>
+              <option value="en">🇬🇧 English</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" style="font-size:13px" onclick="saveLangSetting()" id="s_lang_btn">Зберегти</button>
+        </div>
+
+        <!-- DATA -->
+        <div class="settings-section">
+          <h3 id="s_data_h" data-i18n="s_data">🗄 Дані</h3>
+          <div class="settings-row">
+            <div><div class="settings-row-label" data-i18n="excel_export">Excel (.xlsx)</div><div class="settings-row-sub" data-i18n="excel_sub">Всі витрати по користувачам</div></div>
+            <button class="btn btn-green" style="width:auto;padding:10px 16px;font-size:13px" onclick="exportExcel()">📥</button>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-row-label" data-i18n="json_export">JSON резерв</div><div class="settings-row-sub" data-i18n="json_sub">Повний дамп даних</div></div>
+            <button class="btn btn-secondary" style="width:auto;padding:10px 16px;font-size:13px" onclick="exportJSON()">📋</button>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-row-label" style="color:var(--red)">Очистить всё</div><div class="settings-row-sub">Удалить все расходы</div></div>
+            <button class="btn btn-danger" style="width:auto;padding:10px 16px;font-size:13px" onclick="clearAll()">🗑</button>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-row-label" data-i18n="change_pass">🔒 Змінити пароль</div><div class="settings-row-sub" data-i18n="change_pass_sub">Поточний пароль за замовчуванням: 1234</div></div>
+            <button class="btn btn-secondary" style="width:auto;padding:10px 16px;font-size:13px" onclick="showChangePassword()">Сменить</button>
+          </div>
+          <div class="settings-row">
+            <div><div class="settings-row-label" data-i18n="lock">🚪 Заблокувати</div><div class="settings-row-sub" data-i18n="lock_sub">Вийти та показати екран пароля</div></div>
+            <button class="btn btn-secondary" style="width:auto;padding:10px 16px;font-size:13px" onclick="lockApp()" data-i18n="lock_btn">Блокувати</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main-area -->
+
+  <!-- BOTTOM NAV (mobile) -->
+  <div class="bottom-nav" id="bottomNav">
+    <div class="nav-item active" data-view="calendar" onclick="switchView('calendar')">
+      <div class="nav-icon">📅</div>
+      <div class="nav-label" data-i18n="calendar">Календар</div>
+    </div>
+    <div class="nav-item" data-view="charts" onclick="switchView('charts')">
+      <div class="nav-icon">📊</div>
+      <div class="nav-label" data-i18n="analytics">Аналітика</div>
+    </div>
+    <div class="nav-add">
+      <button class="nav-add-btn" onclick="openAddModal()">＋</button>
+    </div>
+    <div class="nav-item" data-view="plan" onclick="switchView('plan')">
+      <div class="nav-icon">🎯</div>
+      <div class="nav-label" data-i18n="plan">План</div>
+    </div>
+    <div class="nav-item" data-view="settings" onclick="switchView('settings')">
+      <div class="nav-icon">⚙️</div>
+      <div class="nav-label" data-i18n="settings">Налаштування</div>
+    </div>
+  </div>
+
+</div><!-- /app-body -->
+
+<!-- FAB (desktop) -->
+<div class="fab"><button class="fab-btn" onclick="openAddModal()">＋</button></div>
+
+<!-- ADD MODAL -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 id="addTitle">Добавить расход <button class="modal-close" onclick="closeModal('addModal')">×</button></h2>
+    <div class="form-group"><label class="form-label">Пользователь</label>
+      <select class="form-select" id="expUser"></select>
+    </div>
+    <div class="form-group"><label class="form-label">Название</label><input class="form-input" id="expName" placeholder="Продукты, Аренда..."></div>
     <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Логин</label>
-        <input class="form-input" id="userLogin" placeholder="bogdan" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Пароль</label>
-        <input class="form-input" id="userPassword" placeholder="минимум 3 символа">
-      </div>
+      <div class="form-group"><label class="form-label">Сумма</label><input class="form-input" id="expAmount" type="number" placeholder="0" min="0" step="0.01" inputmode="decimal"></div>
+      <div class="form-group"><label class="form-label">Дата</label><input class="form-input" id="expDate" type="date"></div>
     </div>
-    <div class="form-group">
-      <label class="form-label">Роль</label>
-      <select class="role-select" id="userRole">
-        <option value="admin">🔑 Администратор — полный доступ + управление пользователями</option>
-        <option value="editor">✏️ Редактор — добавление и редактирование расходов</option>
-        <option value="viewer">👁 Читатель — только просмотр</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Цвет аватара</label>
-      <div class="color-picker-row" id="userColorPicker"></div>
-    </div>
+    <div class="form-group"><label class="form-label">Категория</label><select class="form-select" id="expCat"></select></div>
+    <div class="form-group"><label class="form-label">Заметка</label><input class="form-input" id="expNote" placeholder="Необязательно..."></div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal('modalUser')">Отмена</button>
-      <button class="btn btn-primary" id="saveUserBtn" onclick="saveUser()">Добавить</button>
+      <button class="btn btn-secondary" onclick="closeModal('addModal')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveExpense()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- BUDGET MODAL -->
+<div class="modal-overlay" id="planModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>Бюджет на месяц <button class="modal-close" onclick="closeModal('planModal')">×</button></h2>
+    <div id="budgetFields"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('planModal')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveBudgets()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPENSE DETAIL BOTTOM SHEET -->
+<div class="bottom-sheet" id="expDet">
+  <div class="bs-overlay" onclick="closeDetail()"></div>
+  <div class="bs-content">
+    <div class="bs-handle"></div>
+    <div class="det-name" id="dName"></div>
+    <div class="det-cat" id="dCat"></div>
+    <div class="det-amt" id="dAmt"></div>
+    <div class="det-meta" id="dDate"></div>
+    <div class="det-note" id="dNote"></div>
+    <div class="det-user" id="dUser"></div>
+    <div class="det-actions">
+      <button class="det-btn" onclick="editFromDetail()" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border)">✏️ Изменить</button>
+      <button class="det-btn" onclick="deleteFromDetail()" style="background:rgba(255,107,107,.15);color:var(--red);border:1px solid rgba(255,107,107,.3)">🗑 Удалить</button>
     </div>
   </div>
 </div>
@@ -263,9 +743,158 @@ body{display:flex;flex-direction:column;min-height:100vh;}
 <div class="toast" id="toast"></div>
 
 <script>
-// ══════════════════════════════════════
-//  CONFIG
-// ══════════════════════════════════════
+// ════════════════════════════════════════
+//  CONSTANTS
+// ════════════════════════════════════════
+const DEFAULT_CATS = {
+  'Транспорт':      {icon:'🚗',color:'#ffa94d',builtin:true},
+  'Бытовая химия':  {icon:'🧴',color:'#a78bfa',builtin:true},
+  'Кафе':           {icon:'☕',color:'#fb923c',builtin:true},
+  'Продукты':       {icon:'🛒',color:'#4ecca3',builtin:true},
+  'Спорт':          {icon:'💪',color:'#38bdf8',builtin:true},
+  'Фаст Фуд':       {icon:'🍔',color:'#ff6b6b',builtin:true},
+  'Жильё':          {icon:'🏠',color:'#6c8dfa',builtin:true},
+  'Еда':            {icon:'🍕',color:'#34d399',builtin:true},
+  'Развлечения':    {icon:'🎬',color:'#b197fc',builtin:true},
+  'Здоровье':       {icon:'💊',color:'#ff87b2',builtin:true},
+  'Дети':           {icon:'🧒',color:'#ffd43b',builtin:true},
+  'Прочее':         {icon:'📦',color:'#8892a4',builtin:true},
+};
+// ════════════════════════════════════════
+//  I18N — TRANSLATIONS
+// ════════════════════════════════════════
+const I18N = {
+  uk: {
+    // Nav
+    calendar:'Календар',
+    settings_title:'⚙️ Налаштування',
+    s_users_short:'Користувачі', sections_label:'Розділи', cats_label:'Категорії', add_expense_btn:'＋ Додати витрату', analytics:'Аналітика', plan:'План', settings:'Налаштування',
+    // Settings sections
+    s_users:'👤 Користувачі', s_cats:'🏷 Категорії', s_catcolors:'🎨 Кольори категорій',
+    s_amtcolor:'💰 Колір сум', s_currency:'💱 Валюта', s_data:'🗄 Дані', s_lang:'🌐 Мова інтерфейсу',
+    // Category actions
+    new_cat:'Нова категорія', add_cat:'+ Додати', reset_cats:'↺ Скинути',
+    cat_name:'Назва', cat_icon:'Іконка', cat_color:'Колір', quick_color:'Швидкий колір',
+    // Amount color
+    preview:'Попередній перегляд', apply:'✅ Застосувати', reset:'↺ Скинути',
+    // Currency
+    save:'Зберегти',
+    // Data
+    excel_export:'Excel (.xlsx)', excel_sub:'Всі витрати по користувачам',
+    json_export:'JSON резерв', json_sub:'Повний дамп даних',
+    clear_all:'Очистити все', clear_sub:'Видалити всі витрати',
+    change_pass:'🔒 Змінити пароль', change_pass_sub:'Поточний пароль за замовчуванням: 1234',
+    lock:'🚪 Заблокувати', lock_sub:'Вийти та показати екран пароля',
+    change_btn:'Змінити', lock_btn:'Блокувати',
+    // Months
+    months:['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'],
+    months_g:['січня','лютого','березня','квітня','травня','червня','липня','серпня','вересня','жовтня','листопада','грудня'],
+    days:['ПН','ВТ','СР','ЧТ','ПТ','СБ','НД'],
+    // Built-in categories
+    cats:{'Транспорт':'Транспорт','Бытовая химия':'Побутова хімія','Кафе':'Кафе','Продукты':'Продукти','Спорт':'Спорт','Фаст Фуд':'Фаст Фуд','Жильё':'Житло','Еда':"Їжа",'Развлечения':'Розваги','Здоровье':"Здоров'я",'Дети':'Діти','Прочее':'Інше'},
+    // Modals
+    add_expense:'Додати витрату', edit_expense:'Редагувати витрату',
+    expense_name:'Назва', expense_amount:'Сума', expense_cat:'Категорія',
+    expense_date:'Дата', expense_note:'Нотатка', expense_user:'Користувач',
+    cancel:'Скасувати', delete_btn:'Видалити',
+    // Toast / errors
+    err_name:'❌ Введіть назву', err_amount:'❌ Введіть суму',
+    saved:'✅ Збережено', deleted:'🗑 Видалено',
+    currency_saved:'✅ Валюту збережено', color_saved:'✅ Колір оновлено',
+    // Plan
+    plan_budget:'Бюджет', plan_spent:'Витрачено', plan_left:'Залишок',
+    // Shared
+    shared:'Спільні', total:'Загалом',
+    // Login screen
+    select_account:'Виберіть акаунт', who_are_you:'Хто ви?', enter_password:'Введіть пароль',
+    loading:'Завантаження...',
+  },
+  ru: {
+    calendar:'Календарь',
+    settings_title:'⚙️ Настройки',
+    s_users_short:'Пользователи', sections_label:'Разделы', cats_label:'Категории', add_expense_btn:'＋ Добавить расход', analytics:'Аналитика', plan:'План', settings:'Настройки',
+    s_users:'👤 Пользователи', s_cats:'🏷 Категории', s_catcolors:'🎨 Цвета категорий',
+    s_amtcolor:'💰 Цвет сумм', s_currency:'💱 Валюта', s_data:'🗄 Данные', s_lang:'🌐 Язык интерфейса',
+    new_cat:'Новая категория', add_cat:'+ Добавить', reset_cats:'↺ Сбросить',
+    cat_name:'Название', cat_icon:'Иконка', cat_color:'Цвет', quick_color:'Быстрый цвет',
+    preview:'Предпросмотр', apply:'✅ Применить', reset:'↺ Сброс',
+    save:'Сохранить',
+    excel_export:'Excel (.xlsx)', excel_sub:'Все расходы по пользователям',
+    json_export:'JSON резерв', json_sub:'Полный дамп данных',
+    clear_all:'Очистить всё', clear_sub:'Удалить все расходы',
+    change_pass:'🔒 Сменить пароль', change_pass_sub:'Текущий пароль по умолчанию: 1234',
+    lock:'🚪 Заблокировать', lock_sub:'Выйти и показать экран пароля',
+    change_btn:'Сменить', lock_btn:'Блокировать',
+    months:['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'],
+    months_g:['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'],
+    days:['ПН','ВТ','СР','ЧТ','ПТ','СБ','ВС'],
+    cats:{'Транспорт':'Транспорт','Бытовая химия':'Бытовая химия','Кафе':'Кафе','Продукты':'Продукты','Спорт':'Спорт','Фаст Фуд':'Фаст Фуд','Жильё':'Жильё','Еда':'Еда','Развлечения':'Развлечения','Здоровье':'Здоровье','Дети':'Дети','Прочее':'Прочее'},
+    add_expense:'Добавить расход', edit_expense:'Редактировать расход',
+    expense_name:'Название', expense_amount:'Сумма', expense_cat:'Категория',
+    expense_date:'Дата', expense_note:'Заметка', expense_user:'Пользователь',
+    cancel:'Отмена', delete_btn:'Удалить',
+    err_name:'❌ Введите название', err_amount:'❌ Введите сумму',
+    saved:'✅ Сохранено', deleted:'🗑 Удалено',
+    currency_saved:'✅ Валюта сохранена', color_saved:'✅ Цвет обновлён',
+    plan_budget:'Бюджет', plan_spent:'Потрачено', plan_left:'Остаток',
+    shared:'Общие', total:'Итого',
+    select_account:'Выберите аккаунт', who_are_you:'Кто вы?', enter_password:'Введите пароль',
+    loading:'Загрузка...',
+  },
+  en: {
+    calendar:'Calendar',
+    settings_title:'⚙️ Settings',
+    s_users_short:'Users', sections_label:'Sections', cats_label:'Categories', add_expense_btn:'＋ Add expense', analytics:'Analytics', plan:'Plan', settings:'Settings',
+    s_users:'👤 Users', s_cats:'🏷 Categories', s_catcolors:'🎨 Category colors',
+    s_amtcolor:'💰 Amount color', s_currency:'💱 Currency', s_data:'🗄 Data', s_lang:'🌐 Language',
+    new_cat:'New category', add_cat:'+ Add', reset_cats:'↺ Reset',
+    cat_name:'Name', cat_icon:'Icon', cat_color:'Color', quick_color:'Quick color',
+    preview:'Preview', apply:'✅ Apply', reset:'↺ Reset',
+    save:'Save',
+    excel_export:'Excel (.xlsx)', excel_sub:'All expenses by users',
+    json_export:'JSON backup', json_sub:'Full data dump',
+    clear_all:'Clear all', clear_sub:'Delete all expenses',
+    change_pass:'🔒 Change password', change_pass_sub:'Default password: 1234',
+    lock:'🚪 Lock', lock_sub:'Sign out and show password screen',
+    change_btn:'Change', lock_btn:'Lock',
+    months:['January','February','March','April','May','June','July','August','September','October','November','December'],
+    months_g:['January','February','March','April','May','June','July','August','September','October','November','December'],
+    days:['MO','TU','WE','TH','FR','SA','SU'],
+    cats:{'Транспорт':'Transport','Бытовая химия':'Household','Кафе':'Cafe','Продукты':'Groceries','Спорт':'Sports','Фаст Фуд':'Fast Food','Жильё':'Housing','Еда':'Food','Развлечения':'Entertainment','Здоровье':'Health','Дети':'Kids','Прочее':'Other'},
+    add_expense:'Add expense', edit_expense:'Edit expense',
+    expense_name:'Name', expense_amount:'Amount', expense_cat:'Category',
+    expense_date:'Date', expense_note:'Note', expense_user:'User',
+    cancel:'Cancel', delete_btn:'Delete',
+    err_name:'❌ Enter name', err_amount:'❌ Enter amount',
+    saved:'✅ Saved', deleted:'🗑 Deleted',
+    currency_saved:'✅ Currency saved', color_saved:'✅ Color updated',
+    plan_budget:'Budget', plan_spent:'Spent', plan_left:'Remaining',
+    shared:'Shared', total:'Total',
+    select_account:'Select account', who_are_you:'Who are you?', enter_password:'Enter password',
+    loading:'Loading...',
+  },
+};
+
+// Active language — loaded from cfg or default UA
+let lang = 'uk';
+function t(key){ return (I18N[lang] && I18N[lang][key]) || (I18N['uk'][key]) || key; }
+
+const MONTHS   = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const MONTHS_G = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+const DAYS     = ['ПН','ВТ','СР','ЧТ','ПТ','СБ','ВС'];
+// Dynamic getters — return translated versions when lang is set
+function getMonths()  { return window._MONTHS   || MONTHS;   }
+function getMonthsG() { return window._MONTHS_G || MONTHS_G; }
+function getDays()    { return window._DAYS      || DAYS;     }
+const PALETTE_COLORS = ['#6c8dfa','#4ecca3','#ffa94d','#b197fc','#ff87b2','#ffd43b','#ff6b6b','#a78bfa','#34d399','#f472b6','#fb923c','#38bdf8','#e879f9','#facc15','#4ade80'];
+const EMOJI_LIST = ['🏠','🍔','🚗','🎬','💊','🧒','📦','🛒','💪','🎮','✈️','🎓','💼','🐾','🌿','🎁','🍷','☕','🎵','💈','🏋️','🛍️','🏥','📱','💻','🔧','🎨','📚','🌍','🏖️','🍕','🚀','💡','🎪','🐶','🌺','🎯','💎','🏦','🚿','⚽','🎸','🍰','🧴','🧹','🚁','🛞','🌙','⭐','🔑'];
+
+// ════════════════════════════════════════
+//  FIREBASE META CONFIG
+// ════════════════════════════════════════
+// Accounts and users are managed in the admin panel (finflow-admin.html)
+// and stored in Firebase under finflow_meta/
+// This app reads them on startup to build the login screen.
 const FB_CONFIG = {
   apiKey: "AIzaSyBZ1b6yf1WQbhZ7lhIbeYw_fKc4k88mmFc",
   authDomain: "family-budget-32149.firebaseapp.com",
@@ -275,404 +904,1759 @@ const FB_CONFIG = {
   messagingSenderId: "1015461302295",
   appId: "1:1015461302295:web:835d7a14a852c224534c52"
 };
-const FB_URL = FB_CONFIG.databaseURL;
-// Мастер-пароль хранится в Firebase: finflow_meta/_system/master_password
-// При первом запуске используется временный пароль: setup1234
+const FB_URL_PRO = FB_CONFIG.databaseURL;
+const META_REF    = 'finflow_meta'; // where admin panel stores accounts/users
 
-const COLORS = ['#6c8dfa','#ff87b2','#4ecca3','#ffa94d','#b197fc','#ff6b6b','#ffd43b','#38bdf8','#f472b6','#34d399','#fb923c','#a78bfa'];
+// ════════════════════════════════════════
+//  SESSION STATE
+// ════════════════════════════════════════
+let _session = {
+  accId:    null,   // e.g. 'family-bogdan'
+  userId:   null,   // e.g. 'bogdan'
+  userData: null,   // { name, password, role, color, login }
+  accData:  null,   // { name, color, users:{} }
+};
 
-// ══════════════════════════════════════
-//  STATE
-// ══════════════════════════════════════
-let db       = null;
-let metaRef  = null;
-let accounts = {}; // { accId: { name, color, users: { userId: {name,login,password,role,color} } } }
-let _editingAccId   = null;
-let _editingUserId  = null;
-let _addingToAccId  = null;
-let _selAccColor    = COLORS[0];
-let _selUserColor   = COLORS[1];
+// ════════════════════════════════════════
+//  SAFE STORAGE — prefix per account+user
+// ════════════════════════════════════════
+// Each account+user combo gets its own isolated localStorage namespace
+let STORE_PREFIX = 'ff_none:'; // set in startApp() after login
+const _mem = {};
+const store = {
+  get(k){ try{ return localStorage.getItem(STORE_PREFIX+k); }catch(e){ return _mem[STORE_PREFIX+k]||null; } },
+  set(k,v){ try{ localStorage.setItem(STORE_PREFIX+k,v); }catch(e){} _mem[STORE_PREFIX+k]=v; },
+};
 
-// ══════════════════════════════════════
-//  AUTH
-// ══════════════════════════════════════
-// ══════════════════════════════════════
-//  AUTH
-// ══════════════════════════════════════
-let _db = null; // temp db during login
+// ════════════════════════════════════════
+//  STATE — initialized in startApp() after login
+// ════════════════════════════════════════
+let allExpenses = [];
+let budgets     = {};
+let cfg         = {};
+let CATS        = {};
+let USERS       = {};
+let currency    = '€';
+let amountColor = '#ffffff';
 
-function adminLogin(){
-  const val = document.getElementById('masterInput').value.trim();
-  if(!val) return;
-  const btn = document.querySelector('.login-btn');
-  btn.textContent = 'Проверка...';
-  btn.disabled = true;
-  document.getElementById('loginErr').textContent = '';
+let activeUser   = null; // set to current userId after login
+let activeFilter = null;
+let currentDate  = new Date();
+let currentView  = 'calendar';
+let editingId    = null;
+let detailId     = null;
+let selectedNewCatEmoji = '🏷';
 
-  // Destroy previous app if any
-  Promise.all(firebase.apps.map(a => a.delete().catch(()=>{}))).then(() => {
-    firebase.initializeApp(Object.assign({}, FB_CONFIG));
-    _db = firebase.database();
-    const auth = firebase.auth();
+// Firebase state
+let fbApp = null, fbDb = null, fbRef = null, fbConnected = false, fbRoom = '';
 
-    // Try anon auth, but proceed after 3s regardless
-    let proceeded = false;
-    const proceed = () => {
-      if(proceeded) return;
-      proceeded = true;
-      _db.ref('finflow_meta/_admin/master_password').once('value')
-        .then(snap => {
-          const stored = String(snap.val() || '');
-          if(!stored || val === stored){
-            // Success
-            localStorage.setItem('ff_adm', val);
-            db = _db;
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('adminApp').style.display = 'flex';
-            afterFirebaseInit();
-          } else {
-            document.getElementById('loginErr').textContent = '❌ Неверный пароль';
-            setTimeout(()=>document.getElementById('loginErr').textContent='', 3000);
-            btn.textContent = 'Войти в панель';
-            btn.disabled = false;
-            _db.app.delete().catch(()=>{});
-          }
-        })
-        .catch(err => {
-          // Firebase read blocked — try cached password
-          const cached = localStorage.getItem('ff_adm');
-          if(cached && val === cached){
-            db = _db;
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('adminApp').style.display = 'flex';
-            afterFirebaseInit();
-          } else {
-            document.getElementById('loginErr').textContent = '❌ ' + err.message;
-            btn.textContent = 'Войти в панель';
-            btn.disabled = false;
-          }
-        });
-    };
+// ════════════════════════════════════════
+//  startApp() — called after successful login
+// ════════════════════════════════════════
+function startApp(accId, userId, accData, userData){
+  // 1. Save session
+  _session = { accId, userId, userData, accData };
+  STORE_PREFIX = 'ffpro_' + accId + '_' + userId + ':';
 
-    auth.onAuthStateChanged(user => { if(user) proceed(); });
-    auth.signInAnonymously().catch(() => proceed());
-    setTimeout(proceed, 3000);
+  // 2. Save session token (24h)
+  const APP_VER = 'pro1';
+  try{
+    sessionStorage.setItem('ffpro_active_acc', accId);
+    sessionStorage.setItem('ffpro_active_user', userId);
+    localStorage.setItem(STORE_PREFIX+'sess',    Date.now().toString());
+    localStorage.setItem(STORE_PREFIX+'sess_ver', APP_VER);
+  }catch(e){}
+
+  // 3. Load this account's data from storage
+  CATS  = JSON.parse(JSON.stringify(DEFAULT_CATS));
+
+  // Build USERS from account's user list
+  USERS = {};
+  Object.entries(accData.users || {}).forEach(([uid, u])=>{
+    USERS[uid] = { name: u.name || uid, color: u.color || '#6c8dfa' };
   });
+  // Ensure at least 2 CSS user vars
+  const userIds = Object.keys(USERS);
+  if(userIds[0]) document.documentElement.style.setProperty('--u1', USERS[userIds[0]].color);
+  if(userIds[1]) document.documentElement.style.setProperty('--u2', USERS[userIds[1]].color);
+
+  const exp = store.get('ff_exp');
+  const bud = store.get('ff_bud');
+  const c   = store.get('ff_cfg');
+  allExpenses = JSON.parse(exp && exp!=='[]' ? exp : '[]');
+  budgets     = JSON.parse(bud && bud!=='{}' ? bud : '{}');
+  cfg         = JSON.parse(c   && c!=='{}'   ? c   : '{}');
+
+  // 4. Apply saved config
+  if(cfg.customCats) Object.entries(cfg.customCats).forEach(([n,d])=>{ CATS[n]={...d,builtin:false}; });
+  if(cfg.catColors)  Object.keys(cfg.catColors).forEach(k=>{ if(CATS[k]) CATS[k].color=cfg.catColors[k]; });
+  // Apply saved category order
+  if(cfg.catOrder && Array.isArray(cfg.catOrder)){
+    const ordered = {};
+    cfg.catOrder.forEach(n=>{ if(CATS[n]) ordered[n]=CATS[n]; });
+    // Add any new cats not in saved order
+    Object.keys(CATS).forEach(n=>{ if(!ordered[n]) ordered[n]=CATS[n]; });
+    Object.keys(CATS).forEach(n=>delete CATS[n]);
+    Object.assign(CATS, ordered);
+  }
+  if(cfg.users)      Object.entries(cfg.users).forEach(([uid,d])=>{ if(USERS[uid]){ if(d.name)USERS[uid].name=d.name; if(d.color)USERS[uid].color=d.color; }});
+  currency    = cfg.currency    || '€';
+  amountColor = cfg.amountColor || '#ffffff';
+  lang = cfg.lang || 'uk';
+  document.documentElement.style.setProperty('--amount-color', amountColor);
+
+  // 5. Set active user to logged-in user
+  activeUser = userId;
+
+  // 6. Default budgets only (no seed expenses — they race with Firebase)
+  if(!Object.keys(budgets).length){
+    budgets={'Транспорт':200,'Бытовая химия':100,'Кафе':150,'Продукты':400,'Спорт':80,'Фаст Фуд':100,'Жильё':1100,'Еда':400,'Развлечения':100,'Здоровье':150,'Дети':100,'Прочее':80};
+    saveBud();
+  }
+
+  // 7. Firebase auto-connect using accId as room
+  DEFAULT_FB_URL  = FB_URL_PRO;
+  DEFAULT_FB_ROOM = accId; // each account has its own room
+  const fbUrlToUse  = cfg.fbUrl  || DEFAULT_FB_URL;
+  const fbRoomToUse = cfg.fbRoom || DEFAULT_FB_ROOM;
+  const fbUrlEl  = document.getElementById('fbUrl');
+  const fbRoomEl = document.getElementById('fbRoom');
+  if(fbUrlEl)  fbUrlEl.value  = fbUrlToUse;
+  if(fbRoomEl) fbRoomEl.value = fbRoomToUse;
+
+  // 8. Update top bar to show user name
+  const syncBar = document.querySelector('.sync-bar');
+  if(syncBar){
+    // Add user badge to right of sync bar
+    if(!document.getElementById('userBadge')){
+      const badge = document.createElement('div');
+      badge.id = 'userBadge';
+      badge.style.cssText = 'display:flex;align-items:center;gap:6px;cursor:pointer;';
+      badge.title = 'Выйти';
+      badge.onclick = lockApp;
+      badge.innerHTML = `
+        <div style="width:20px;height:20px;border-radius:6px;background:${userData.color||'#6c8dfa'};display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:9px;color:#fff;">${(userData.name||userId)[0].toUpperCase()}</div>
+        <span style="font-size:11px;color:var(--text3);">${userData.name||userId}</span>
+        <span style="font-size:10px;color:var(--text3);opacity:.5;">⎋</span>
+      `;
+      syncBar.style.justifyContent = 'space-between';
+      syncBar.appendChild(badge);
+    }
+  }
+
+  // 9. Restrict UI by role
+  const role = userData.role || 'editor';
+  if(role === 'viewer'){
+    // Hide all add/edit buttons for viewers
+    document.querySelectorAll('.nav-add-btn, .fab-btn, .hbtn[onclick*="openAdd"]').forEach(el=>{ el.style.display='none'; });
+  } else {
+    // Make sure add buttons are visible for editors
+    document.querySelectorAll('.nav-add-btn, .fab-btn').forEach(el=>{ el.style.display=''; });
+  }
+
+  // 10. Connect Firebase immediately — auth handled inside initFirebase
+  try{ initFirebase(fbUrlToUse, fbRoomToUse); }catch(e){
+    setSyncStatus('offline','Ошибка: '+e.message);
+  }
+
+  try{
+    initEmojiPicker();
+    initColorPalette();
+    renderUserSwitcher();
+    buildSidebarCats();
+    updateSidebarUsers();
+    updateBadges();
+    renderCalendar();
+    // Apply language AFTER calendar is rendered
+    applyLang(lang, false);
+  }catch(err){
+    console.error('startApp render error:', err);
+  }
 }
 
-
-function adminLogout(){
-  if(db){ try{ db.ref('.info/connected').off(); }catch(e){} }
-  try{ firebase.apps.forEach(a=>a.delete()); }catch(e){}
-  db = null; metaRef = null; accounts = {};
-  document.getElementById('adminApp').style.display = 'none';
-  document.getElementById('loginScreen').style.display = 'flex';
-  document.getElementById('masterInput').value = '';
-  document.querySelector('.login-btn').textContent = 'Войти в панель';
-  document.querySelector('.login-btn').disabled = false;
+// ════════════════════════════════════════
+//  FIREBASE SYNC
+// ════════════════════════════════════════
+function connectFirebase(){
+  const url=(document.getElementById('fbUrl').value.trim()) || DEFAULT_FB_URL;
+  const room=(document.getElementById('fbRoom').value.trim()) || DEFAULT_FB_ROOM;
+  if(!url.startsWith('https://')){showToast('❌ URL должен начинаться с https://');return;}
+  // Save only if differs from default (keep cfg clean)
+  if(url !== DEFAULT_FB_URL || room !== DEFAULT_FB_ROOM){
+    cfg.fbUrl=url; cfg.fbRoom=room; saveCfg();
+  }
+  setSyncStatus('syncing','Подключение...');
+  try{initFirebase(url,room);}catch(e){showToast('❌ '+e.message);setSyncStatus('offline','Ошибка: '+e.message);}
 }
 
-function openChangeMasterPass(){
-  const cur = prompt('Текущий мастер-пароль:');
-  if(!cur) return;
-  // Verify current password against Firebase
-  db.ref('finflow_meta/_admin/master_password').once('value').then(snap=>{
-    const stored = snap.val() || 'setup1234';
-    if(cur !== stored){ showToast('❌ Неверный текущий пароль'); return; }
-    const np1 = prompt('Новый мастер-пароль (минимум 6 символов):');
-    if(!np1 || np1.length < 6){ showToast('❌ Минимум 6 символов'); return; }
-    const np2 = prompt('Повторите новый пароль:');
-    if(np1 !== np2){ showToast('❌ Пароли не совпадают'); return; }
-    db.ref('finflow_meta/_admin/master_password').set(np1).then(()=>{
-      showToast('✅ Мастер-пароль изменён!');
-    });
-  });
-}
+function initFirebase(url, room){
+  if(!window.firebase || typeof firebase.initializeApp !== 'function'){
+    showToast('❌ Firebase SDK не загружен. Проверьте интернет-соединение.');
+    setSyncStatus('offline','SDK не загружен');
+    return;
+  }
+  // Reuse ff_meta app — it's already authenticated anonymously by loadAccounts
+  // This avoids creating a new app that needs to re-authenticate
+  try{ fbApp = firebase.app('ff_meta'); }catch(e){
+    // ff_meta not available — create fresh app with full config
+    try{
+      firebase.apps.slice().forEach(a=>{ try{a.delete();}catch(e){} });
+    }catch(e){}
+    const fbCfg = url === FB_URL_PRO ? FB_CONFIG : {databaseURL: url};
+    try{ fbApp = firebase.initializeApp(fbCfg); }
+    catch(e){ fbApp = firebase.app(); }
+  }
+  fbDb = fbApp.database();
+  fbRoom = room;
+  fbRef = fbDb.ref('finflow/' + room);
 
-document.getElementById('masterInput').addEventListener('keydown', e=>{
-  if(e.key==='Enter') adminLogin();
-});
+  setSyncStatus('syncing','Подключение...');
 
-// ══════════════════════════════════════
-//  FIREBASE
-// ══════════════════════════════════════
-function afterFirebaseInit(){
-  metaRef = db.ref('finflow_meta');
+  function onFbConnected(){
+    fbConnected = true;
+    setSyncStatus('online','Синхронизировано ✓');
+    document.getElementById('fbStatus').className='firebase-status connected';
+    document.getElementById('fbStatus').innerHTML='<span>●</span>&nbsp;Подключено · ' + fbRoom;
+    document.getElementById('btnDisconnect').style.display='block';
+  }
 
-  db.ref('.info/connected').on('value', snap=>{
-    const dot  = document.getElementById('syncDot');
-    const text = document.getElementById('syncText');
-    if(snap.val()){
-      dot.className  = 'sync-dot';
-      text.textContent = 'Подключено к Firebase';
-    } else {
-      dot.className  = 'sync-dot offline';
-      text.textContent = 'Нет соединения';
+  // Authenticate anonymously BEFORE attaching listeners
+  // This ensures auth != null when Rules are strict
+  const startListeners = () => {
+
+  // ── Listener 1: expenses (real-time, source of truth) ──
+  fbRef.child('expenses').on('value', snap => {
+    if(_receivingRemote) return;
+    _receivingRemote = true;
+    const data = snap.val();
+    // Only update if Firebase actually has data OR we have nothing locally
+    // This prevents a brief null snap from wiping real local expenses
+    if(data){
+      allExpenses = Object.values(data);
+      store.set('ff_exp', JSON.stringify(allExpenses));
+    } else if(!allExpenses.length){
+      // Firebase empty and nothing local — start fresh
+      allExpenses = [];
+      store.set('ff_exp', '[]');
+    }
+    // If data===null but we have local expenses — keep local until Firebase confirms
+    renderCalendar();
+    updateBadges();
+    if(currentView==='charts') renderCharts();
+    if(currentView==='plan')   renderPlan();
+    _receivingRemote = false;
+    onFbConnected();
+  }, err=>{ setSyncStatus('offline','Ошибка: '+err.message); });
+
+  // ── Listener 2: budgets ──
+  fbRef.child('budgets').on('value', snap => {
+    if(_receivingRemote) return;
+    const data = snap.val();
+    if(data && Object.keys(data).length){
+      budgets = data;
+      store.set('ff_bud', JSON.stringify(budgets));
+      if(currentView==='plan')   renderPlan();
+      if(currentView==='charts') renderCharts();
     }
   });
 
-  // Wait for auth to be ready, then listen to accounts
-  const SKIP_KEYS = ['_system', '_admin'];
-  const startListening = () => {
-    metaRef.on('value', snap=>{
-      accounts = {};
-      const data = snap.val() || {};
-      Object.entries(data).forEach(([accId, accData])=>{
-        if(SKIP_KEYS.includes(accId)) return;
-        if(typeof accData !== 'object' || !accData) return;
-        accounts[accId] = {
-          name:  accData.name  || accId,
-          color: accData.color || COLORS[0],
-          users: accData.users || {},
-        };
-      });
-      renderAccounts();
-      updateStats();
-    });
-  };
-
-  // Auth state guaranteed by login flow, but double-check
-  const auth = firebase.auth();
-  if(auth.currentUser){
-    startListening();
-  } else {
-    const unsub = auth.onAuthStateChanged(user => {
-      unsub();
-      startListening();
-    });
-    // Fallback if auth event never fires
-    setTimeout(startListening, 2000);
-  }
-}
-
-// ══════════════════════════════════════
-//  RENDER
-// ══════════════════════════════════════
-function updateStats(){
-  let totalUsers = 0, totalAdmins = 0;
-  Object.values(accounts).forEach(acc=>{
-    Object.values(acc.users||{}).forEach(u=>{
-      totalUsers++;
-      if(u.role==='admin') totalAdmins++;
-    });
+  // ── Listener 3: cfg — categories, users, colors (real-time) ──
+  fbRef.child('cfg').on('value', snap => {
+    if(_receivingRemote) return;
+    _receivingRemote = true;
+    const remoteCfg = snap.val();
+    if(remoteCfg){
+      // Apply users
+      if(remoteCfg.users){
+        cfg.users = remoteCfg.users;
+        Object.entries(remoteCfg.users).forEach(([uid,d])=>{
+          if(USERS[uid]){ if(d.name)USERS[uid].name=d.name; if(d.color)USERS[uid].color=d.color; }
+        });
+        const uids=Object.keys(USERS);
+        if(uids[0]) document.documentElement.style.setProperty('--u1',USERS[uids[0]].color);
+        if(uids[1]) document.documentElement.style.setProperty('--u2',USERS[uids[1]].color);
+        updateSidebarUsers();
+      }
+      // Apply custom categories
+      if(remoteCfg.customCats){
+        cfg.customCats = remoteCfg.customCats;
+        Object.entries(remoteCfg.customCats).forEach(([n,d])=>{
+          CATS[n] = {...d, builtin:false};
+        });
+        // Remove cats deleted on remote
+        Object.keys(CATS).forEach(n=>{
+          if(!CATS[n].builtin && !remoteCfg.customCats[n]) delete CATS[n];
+        });
+        buildSidebarCats();
+      }
+      // Apply cat colors
+      if(remoteCfg.catColors){
+        cfg.catColors = remoteCfg.catColors;
+        Object.keys(remoteCfg.catColors).forEach(c=>{ if(CATS[c]) CATS[c].color=remoteCfg.catColors[c]; });
+      }
+      // Apply currency & amount color
+      if(remoteCfg.currency)    { currency=remoteCfg.currency; cfg.currency=currency; }
+      if(remoteCfg.amountColor) { amountColor=remoteCfg.amountColor; cfg.amountColor=amountColor; document.documentElement.style.setProperty('--amount-color',amountColor); }
+      
+      store.set('ff_cfg', JSON.stringify(cfg));
+      renderCalendar();
+      if(currentView==='settings') renderSettingsUI();
+    }
+    _receivingRemote = false;
   });
-  document.getElementById('statAccounts').textContent = Object.keys(accounts).length;
-  document.getElementById('statUsers').textContent    = totalUsers;
-  document.getElementById('statAdmins').textContent   = totalAdmins;
-}
 
-function roleLabel(role){
-  return {admin:'Администратор', editor:'Редактор', viewer:'Читатель'}[role] || role;
-}
-function roleBadgeClass(role){
-  return {admin:'role-admin', editor:'role-editor', viewer:'role-viewer'}[role] || 'role-viewer';
-}
+  // Presence detection
+  let _connectedOnce = false;
+  let _offlineTimer = null;
+  fbDb.ref('.info/connected').on('value', snap => {
+    if(snap.val()){
+      _connectedOnce = true;
+      if(_offlineTimer){ clearTimeout(_offlineTimer); _offlineTimer=null; }
+      setSyncStatus('online','Синхронизировано ✓');
+      pushToFirebaseIfEmpty();
+    } else if(_connectedOnce){
+      // Only show offline if we were connected before (not on initial load)
+      _offlineTimer = setTimeout(()=>{
+        setSyncStatus('offline','Нет соединения — работаем локально');
+      }, 5000);
+    }
+  });
 
-function renderAccounts(){
-  const grid = document.getElementById('accountsGrid');
-  const accList = Object.entries(accounts);
-  if(!accList.length){
-    grid.innerHTML = `<div class="empty"><div class="empty-icon">📂</div><div class="empty-text">Нет аккаунтов — создайте первый</div></div>`;
-    return;
+  }; // end startListeners
+
+  // Sign in anonymously then start listeners
+  try{
+    const auth = fbApp.auth();
+    let _started = false;
+    const go = () => { if(!_started){ _started=true; startListeners(); } };
+
+    if(auth.currentUser){
+      go();
+    } else {
+      // onAuthStateChanged fires as soon as token is ready — more reliable than .then()
+      const unsub = auth.onAuthStateChanged(user => {
+        if(user){ unsub(); go(); }
+      });
+      // LOCAL persistence — token cached in localStorage, no re-auth on each open
+      auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+        .then(()=> auth.signInAnonymously())
+        .catch(e=>{
+          console.warn('Auth failed, starting anyway:', e.message);
+          try{ unsub(); }catch(e2){}
+          go();
+        });
+      // Safety: if auth hangs 6s — start anyway
+      setTimeout(()=>{ go(); }, 6000);
+    }
+  } catch(e){
+    // No auth SDK — start listeners directly
+    startListeners();
   }
-  grid.innerHTML = accList.map(([accId, acc])=>{
-    const users = Object.entries(acc.users||{});
-    const userRows = users.map(([uid, u])=>`
-      <div class="user-row">
-        <div class="user-avatar" style="background:${u.color||COLORS[2]}">${(u.name||'?')[0].toUpperCase()}</div>
-        <div style="flex:1">
-          <div class="user-name">${u.name||'—'}</div>
-          <div class="user-login">${u.login||uid}</div>
-        </div>
-        <span class="role-badge ${roleBadgeClass(u.role)}">${roleLabel(u.role)}</span>
-        <button class="btn btn-secondary btn-sm" onclick="openEditUser('${accId}','${uid}')" title="Редактировать">✏️</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteUser('${accId}','${uid}','${(u.name||'').replace(/'/g,'')}')">🗑</button>
-      </div>
-    `).join('');
+}
 
-    return `
-    <div class="account-card fade-in">
-      <div class="account-card-header">
-        <div class="account-icon" style="background:${acc.color}">${(acc.name||accId)[0].toUpperCase()}</div>
-        <div style="flex:1">
-          <div class="account-name">${acc.name}</div>
-          <div class="account-room">ID: ${accId}</div>
+function mergeExpenses(local, remote){
+  const map = {};
+  // ID-based merge: latest timestamp wins
+  local.forEach(e => { if(e && e.id) map[e.id] = e; });
+  remote.forEach(e => { if(e && e.id){
+    if(!map[e.id] || (e.ts||0) > (map[e.id].ts||0)) map[e.id] = e;
+  }});
+  return Object.values(map);
+}
+
+function pushToFirebase(){
+  if(!fbRef || !fbConnected) return;
+  const expsObj = {};
+  allExpenses.forEach(e => { expsObj[e.id.toString().replace(/\./g,'_')] = e; });
+  // set() so deletions propagate (update() never deletes keys)
+  fbRef.child('expenses').set(expsObj).catch(e=>{
+    setSyncStatus('offline','Ошибка записи: ' + e.message);
+  });
+  fbRef.child('budgets').set(budgets);
+  // cfg pushed separately by saveCfg() — don't double-push here
+}
+
+let _firstConnect = true;
+function pushToFirebaseIfEmpty(){
+  // On first connect: only push if Firebase has no expenses AND we have local data
+  // Never push an empty array — that would wipe real data for other users on the same account
+  if(!fbRef || !fbConnected) return;
+  if(!allExpenses.length) return; // nothing local to push — wait for Firebase listener
+  fbRef.child('expenses').once('value').then(snap=>{
+    if(!snap.val()) {
+      // Firebase truly empty AND we have local data — push it
+      pushToFirebase();
+    }
+    // else: Firebase has data, it will come via the listener — don't overwrite
+    _firstConnect = false;
+  });
+}
+
+function setSyncStatus(type, text){
+  const bar = document.getElementById('syncBar');
+  const dot = bar.querySelector('.sync-dot');
+  bar.className = 'sync-bar ' + type;
+  document.getElementById('syncText').textContent = text;
+  dot.className = 'sync-dot' + (type==='syncing'?' pulse':'');
+}
+
+function disconnectFirebase(){
+  if(fbRef){ fbRef.off(); fbRef=null; }
+  fbConnected=false; fbApp=null; fbDb=null;
+  delete cfg.fbUrl; delete cfg.fbRoom; saveCfg();
+  setSyncStatus('setup','Локальный режим — настройте Firebase для синхронизации');
+  document.getElementById('fbStatus').className='firebase-status disconnected';
+  document.getElementById('fbStatus').innerHTML='<span>●</span>&nbsp;Не подключено';
+  document.getElementById('btnDisconnect').style.display='none';
+  showToast('🔌 Синхронизация отключена');
+}
+
+// Firebase URL and room — set dynamically in startApp() based on logged-in account
+let DEFAULT_FB_URL  = FB_URL_PRO;
+let DEFAULT_FB_ROOM = 'default'; // overridden by startApp()
+
+// Firebase auto-connect is handled in startApp()
+
+// ════════════════════════════════════════
+//  PERSISTENCE
+// ════════════════════════════════════════
+let _receivingRemote = false; // flag to avoid echo-loop when receiving Firebase data
+function save()   { store.set('ff_exp', JSON.stringify(allExpenses)); if(fbConnected && !_receivingRemote) pushToFirebase(); }
+function saveBud(){ store.set('ff_bud', JSON.stringify(budgets)); if(fbConnected && !_receivingRemote) pushToFirebase(); }
+function saveCfg(){ 
+  store.set('ff_cfg', JSON.stringify(cfg)); 
+  // Push cfg to Firebase separately — doesn't trigger expense re-sync
+  if(fbRef && fbConnected && !_receivingRemote){
+    fbRef.child('cfg').set({
+      users:      cfg.users      || {},
+      customCats: cfg.customCats || {},
+      catColors:  cfg.catColors  || {},
+      currency:   cfg.currency   || currency,
+      amountColor:cfg.amountColor|| amountColor,
+    }).catch(e=>console.warn('cfg push failed:', e));
+  }
+}
+function fmt(n)   { return Number(n).toLocaleString('ru-RU') + '\u00A0' + currency; }
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ════════════════════════════════════════
+//  LAYOUT DETECTION
+// ════════════════════════════════════════
+function isDesktop(){ return window.innerWidth >= 768; }
+function applyLayout(){
+  const sd = document.getElementById('sidebarDesktop');
+  if(isDesktop()){
+    sd.style.display='flex';
+    sd.style.flexDirection='column';
+  } else {
+    sd.style.display='none';
+  }
+}
+applyLayout();
+window.addEventListener('resize', applyLayout);
+
+// ════════════════════════════════════════
+//  USER SWITCHER (dynamic)
+// ════════════════════════════════════════
+function renderUserSwitcher(){
+  const sw=document.getElementById('userSwitcher');
+  const sdList=document.getElementById('sdUsersList');
+  const userIds=Object.keys(USERS);
+
+  // Mobile pills
+  if(sw){
+    const pills=userIds.map((uid,i)=>{
+      const u=USERS[uid];
+      const isActive=uid===activeUser;
+      return `<div class="usr-pill${isActive?' active':''}" id="pill-${uid}" onclick="setActiveUser('${uid}')">
+        <div class="usr-av" id="pilAv-${uid}" style="background:${u.color}">${u.name[0]}</div>
+        <div class="usr-info">
+          <div class="usr-name" id="pilName-${uid}">${u.name}</div>
+          <div class="usr-amt" id="pilAmt-${uid}">0 ${currency}</div>
         </div>
-        <div class="account-actions">
-          <button class="btn btn-danger btn-sm" onclick="deleteAccount('${accId}','${(acc.name||'').replace(/'/g,'')}')">🗑</button>
-        </div>
+        <div class="usr-badge" id="pilBadge-${uid}" style="background:${u.color}">0</div>
+      </div>`;
+    }).join('');
+    const sharedActive=activeUser==='shared';
+    sw.innerHTML=pills+`<div class="usr-sum${sharedActive?' active':''}" id="pill-shared" onclick="setActiveUser('shared')">
+      <div class="usr-sum-icon">∑</div>
+      <div class="usr-sum-info">
+        <div class="usr-sum-label">Итого</div>
+        <div class="usr-sum-val" id="pilSum">0 ${currency}</div>
       </div>
-      <div class="users-list">
-        ${userRows}
-        <div class="add-user-row" onclick="openAddUser('${accId}')">
-          <span style="font-size:16px">＋</span> Добавить пользователя
-        </div>
+    </div>`;
+  }
+
+  // Desktop sidebar
+  if(sdList){
+    const sdItems=userIds.map((uid,i)=>{
+      const u=USERS[uid];
+      const cssVar=i===0?'var(--u1)':'var(--u2)';
+      const isActive=uid===activeUser;
+      return `<div class="sd-item${isActive?' active':''}" id="sdTab-${uid}" onclick="setActiveUser('${uid}')">
+        <div style="width:28px;height:28px;border-radius:8px;background:${u.color};display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:12px;color:white" id="sdAv-${uid}">${u.name[0]}</div>
+        <div><div id="sdName-${uid}" style="font-size:13px;font-weight:600">${u.name}</div><div id="sdBadge-${uid}" style="font-size:10px;color:var(--text3)">0 ${currency}</div></div>
+      </div>`;
+    }).join('');
+    const sharedActive=activeUser==='shared';
+    sdList.innerHTML=sdItems+`<div class="sd-item${sharedActive?' active':''}" id="sdTab-shared" onclick="setActiveUser('shared')">
+      <div style="width:28px;height:28px;border-radius:8px;background:var(--shared);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:white">∑</div>
+      <div><div style="font-size:13px;font-weight:600">Общий</div><div id="sdBadge-shared" style="font-size:10px;color:var(--text3)">0 ${currency}</div></div>
+    </div>`;
+  }
+}
+
+
+function setActiveUser(u){
+  activeUser=u;
+  const dynamicIds = [...Object.keys(USERS), 'shared'];
+  dynamicIds.forEach(id=>{
+    const pill=document.getElementById('pill-'+id);
+    if(pill) pill.classList.toggle('active',id===u);
+    const sdtab=document.getElementById('sdTab-'+id);
+    if(sdtab) sdtab.classList.toggle('active',id===u);
+  });
+  updateBadges(); renderCalendar();
+  if(currentView==='charts') renderCharts();
+  if(currentView==='plan')   renderPlan();
+}
+function getExpenses(user){ 
+  if(user==='shared') return allExpenses;
+  // Normalise: treat missing/null user as first user in USERS
+  const firstUser = Object.keys(USERS)[0] || '';
+  return allExpenses.filter(e=>(e.user||firstUser)===user); 
+}
+function getMonthExp(user){
+  const y=currentDate.getFullYear(),m=currentDate.getMonth();
+  return getExpenses(user).filter(e=>e.date.startsWith(`${y}-${String(m+1).padStart(2,'0')}`));
+}
+function updateBadges(){
+  Object.keys(USERS).forEach(u=>{
+    const t=getMonthExp(u).reduce((s,e)=>s+e.amount,0);
+    const pb=document.getElementById('pilBadge-'+u);
+    if(pb) pb.textContent=t>=1000?(t/1000).toFixed(0)+'к':t.toFixed(0);
+    const pa=document.getElementById('pilAmt-'+u);
+    if(pa) pa.textContent=fmt(t);
+    const sb=document.getElementById('sdBadge-'+u);
+    if(sb) sb.textContent=fmt(t);
+  });
+  const sh=getMonthExp('shared').reduce((s,e)=>s+e.amount,0);
+  const ps=document.getElementById('pilSum');
+  if(ps) ps.textContent=fmt(sh);
+  const sbs=document.getElementById('sdBadge-shared');
+  if(sbs) sbs.textContent=fmt(sh);
+}
+
+// ════════════════════════════════════════
+//  VIEW SWITCH
+// ════════════════════════════════════════
+function switchView(v){
+  currentView=v;
+  ['calendar','charts','plan','settings'].forEach(id=>{
+    document.getElementById('view'+id.charAt(0).toUpperCase()+id.slice(1))?.classList.toggle('active',id===v);
+  });
+  // Bottom nav
+  document.querySelectorAll('.nav-item[data-view]').forEach(el=>el.classList.toggle('active',el.dataset.view===v));
+  // Desktop sidebar
+  document.querySelectorAll('.sd-item[data-view]').forEach(el=>el.classList.toggle('active',el.dataset.view===v));
+  if(v==='charts')   renderCharts();
+  if(v==='plan')     renderPlan();
+  if(v==='settings') renderSettingsUI();
+}
+
+function renderAll(){
+  updateBadges();
+  updateSidebarUsers();
+  renderCalendar();
+  if(currentView==='charts')   renderCharts();
+  if(currentView==='plan')     renderPlan();
+  if(currentView==='settings') renderSettingsUI();
+}
+
+// ════════════════════════════════════════
+//  CALENDAR
+// ════════════════════════════════════════
+function getDayExp(y,m,d){
+  const key=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  return getExpenses(activeUser).filter(e=>{
+    if(e.date!==key) return false;
+    if(activeFilter&&e.category!==activeFilter) return false;
+    return true;
+  });
+}
+
+// Get category data with fallback (works regardless of current language)
+function getCat(name){
+  if(CATS[name]) return CATS[name];
+  // Try to find by any translated name
+  const fallback = Object.values(CATS).find(c=>c.builtin) || Object.values(CATS)[0];
+  return fallback || {icon:'📦',color:'#8892a4'};
+}
+
+function renderCalendar(){
+  const y=currentDate.getFullYear(),m=currentDate.getMonth();
+  document.getElementById('calMonthLabel').textContent=`${getMonths()[m]} ${y}`;
+  document.getElementById('planMonthLabel').textContent=`${getMonths()[m]} ${y}`;
+
+  const container=document.getElementById('calContainer');
+  container.innerHTML='';
+
+  // Build grid
+  const gridDiv=document.createElement('div'); gridDiv.className='cal-grid';
+  getDays().forEach(d=>{const e=document.createElement('div');e.className='cal-dow';e.textContent=d;gridDiv.appendChild(e);});
+
+  let first=new Date(y,m,1).getDay(); first=(first===0)?6:first-1;
+  const dim=new Date(y,m+1,0).getDate(), prevD=new Date(y,m,0).getDate(), today=new Date();
+  const cells=[];
+  for(let i=first-1;i>=0;i--) cells.push({day:prevD-i,month:m-1,year:m===0?y-1:y,other:true});
+  for(let d=1;d<=dim;d++) cells.push({day:d,month:m,year:y,other:false});
+  const rem=(7-(cells.length%7))%7;
+  for(let d=1;d<=rem;d++) cells.push({day:d,month:m+1,year:m===11?y+1:y,other:true});
+
+  const weekTotals=[];
+  for(let i=0;i<cells.length;i+=7){
+    let wt=0;
+    cells.slice(i,i+7).forEach(c=>{if(!c.other) wt+=getDayExp(c.year,c.month,c.day).reduce((s,e)=>s+e.amount,0);});
+    weekTotals.push(wt);
+  }
+  const monthTotal=weekTotals.reduce((s,w)=>s+w,0);
+
+  cells.forEach((c,idx)=>{
+    const cell=document.createElement('div');
+    cell.className='cal-cell'+(c.other?' other-month':'');
+    const isT=!c.other&&c.day===today.getDate()&&c.month===today.getMonth()&&c.year===today.getFullYear();
+    if(isT) cell.classList.add('today');
+    const exps=c.other?[]:getDayExp(c.year,c.month,c.day);
+    const total=exps.reduce((s,e)=>s+e.amount,0);
+
+    const dEl=document.createElement('div'); dEl.className='cell-day'; dEl.textContent=c.day; cell.appendChild(dEl);
+
+    if(exps.length>0&&!c.other){
+      const dotsWrap=document.createElement('div'); dotsWrap.className='cell-exp-dot';
+      exps.slice(0,5).forEach(exp=>{
+        const cat=getCat(exp.category);
+        const dot=document.createElement('div'); dot.className='cell-dot'; dot.style.background=cat.color;
+        dotsWrap.appendChild(dot);
+      });
+      cell.appendChild(dotsWrap);
+      const tt=document.createElement('div'); tt.className='cell-total'; tt.textContent=Number(total).toLocaleString('ru-RU');
+      cell.appendChild(tt);
+    }
+
+    cell.onclick=()=>{
+      if(c.other) return;
+      const dt=`${c.year}-${String(c.month+1).padStart(2,'0')}-${String(c.day).padStart(2,'0')}`;
+      if(exps.length===0) openAddModal(dt);
+      else if(exps.length===1) showDetail(exps[0]);
+      else showDaySheet(exps, dt);
+    };
+    gridDiv.appendChild(cell);
+
+    // Week total row after every 7 cells
+    if((idx+1)%7===0 && idx<cells.length-1){
+      const wIdx=Math.floor(idx/7);
+      const wt=weekTotals[wIdx];
+    }
+  });
+  container.appendChild(gridDiv);
+
+  // Week total chips
+  weekTotals.forEach((wt,i)=>{
+    const row=document.createElement('div'); row.className='week-totals-row';
+    row.innerHTML=`<span style="color:var(--text3);font-size:9px">Нед ${i+1}</span><span class="wt-chip">${wt>0?Number(wt).toLocaleString('ru-RU'):'—'}</span>`;
+    // insert after row i (7*(i+1) cells = row)
+    // We'll do it differently – just append all after grid
+    container.appendChild(row);
+  });
+
+  // Month summary
+  const ms=document.createElement('div'); ms.className='month-summary';
+  ms.innerHTML=`<div><div class="ms-label">За месяц</div><div class="ms-curr">${currency}</div></div><div class="ms-amount">${Number(monthTotal).toLocaleString('ru-RU')}</div>`;
+  container.appendChild(ms);
+
+  // Recent list
+  renderRecentList();
+  updateBadges();
+}
+
+function renderRecentList(){
+  const el=document.getElementById('recentList');
+  const exps=[...getMonthExp(activeUser)].sort((a,b)=>b.date.localeCompare(a.date)||((b.ts||0)-(a.ts||0))).slice(0,15);
+  const now=Date.now();
+  el.innerHTML=exps.map(exp=>{
+    const cat=getCat(exp.category);
+    const uc=USERS[exp.user];
+    const isNew=(now-(exp.ts||0))<90000; // 90 sec
+    const dt=new Date(exp.date+'T12:00:00');
+    const dateStr=`${dt.getDate()} ${getMonthsG()[dt.getMonth()]}`;
+    const userChip=activeUser==='shared'?`<span class="exp-user-tag" style="background:${uc.color}">${uc.name}</span>`:'';
+    const newBadge=isNew?'<span class="new-badge"></span>':'';
+    return `<div class="expense-card" onclick="showDetailById('${exp.id}')">
+      <div class="exp-icon" style="background:${cat.color}22">${cat.icon}</div>
+      <div class="exp-info">
+        <div class="exp-name">${exp.name}${newBadge}</div>
+        <div class="exp-meta">${dateStr} · ${exp.category}</div>
+        ${userChip}
+      </div>
+      <div class="exp-right">
+        <div class="exp-amt">${fmt(exp.amount)}</div>
       </div>
     </div>`;
   }).join('');
 }
 
-// ══════════════════════════════════════
-//  RESET CATEGORIES
-// ══════════════════════════════════════
-function resetAllAccountsCategories(){
-  if(!confirm('Скинути категорії для ВСІХ акаунтів? Власні категорії та порядок будуть видалені.')) return;
-  const accIds = Object.keys(accounts);
-  if(!accIds.length){ alert('Немає акаунтів'); return; }
-  let done = 0;
-  accIds.forEach(accId => {
-    db.ref('finflow/' + accId + '/cfg').once('value').then(snap => {
-      const cfg = snap.val() || {};
-      // Remove category-related fields — app will reload defaults
-      delete cfg.customCats;
-      delete cfg.catOrder;
-      delete cfg.catColors;
-      db.ref('finflow/' + accId + '/cfg').set(cfg).then(() => {
-        done++;
-        if(done === accIds.length){
-          alert('✅ Категорії скинуті для всіх ' + done + ' акаунтів. При наступному вході користувачі побачать нові стандартні категорії.');
+function prevMonth(){currentDate.setMonth(currentDate.getMonth()-1);renderCalendar();}
+function nextMonth(){currentDate.setMonth(currentDate.getMonth()+1);renderCalendar();}
+function goToToday(){currentDate=new Date();renderCalendar();}
+
+// Day sheet (when multiple expenses on one day)
+function showDaySheet(exps, dateStr){
+  // Show as bottom sheet with list
+  const existing=document.getElementById('daySheet');
+  if(existing) existing.remove();
+  const sheet=document.createElement('div');
+  sheet.id='daySheet';
+  sheet.className='bottom-sheet open';
+  const dt=new Date(dateStr+'T12:00:00');
+  sheet.innerHTML=`<div class="bs-overlay" onclick="document.getElementById('daySheet').remove()"></div>
+  <div class="bs-content">
+    <div class="bs-handle"></div>
+    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;margin-bottom:14px">${dt.getDate()} ${getMonthsG()[dt.getMonth()]}</div>
+    ${exps.map(exp=>{
+      const cat=getCat(exp.category);
+      const uc=USERS[exp.user];
+      return `<div class="expense-card" style="padding:10px 0;border-bottom:1px solid var(--border)" onclick="document.getElementById('daySheet').remove();showDetailById('${exp.id}')">
+        <div class="exp-icon" style="background:${cat.color}22;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">${cat.icon}</div>
+        <div class="exp-info"><div class="exp-name" style="font-size:13px">${exp.name}</div><div class="exp-meta">${exp.category}</div></div>
+        <div class="exp-right"><div class="exp-amt" style="font-size:14px">${fmt(exp.amount)}</div><span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:5px;color:white;background:${uc.color}">${uc.name}</span></div>
+      </div>`;
+    }).join('')}
+    <button class="btn btn-primary" style="margin-top:14px" onclick="document.getElementById('daySheet').remove();openAddModal('${dateStr}')">＋ Добавить расход</button>
+  </div>`;
+  document.body.appendChild(sheet);
+}
+
+// ════════════════════════════════════════
+//  ADD / EDIT
+// ════════════════════════════════════════
+function openAddModal(dateStr){
+  editingId=null;
+  const userIds=Object.keys(USERS);
+  document.getElementById('expUser').innerHTML=userIds.map(uid=>`<option value="${uid}">👤 ${USERS[uid].name}</option>`).join('');
+  // Default to active user if they are a real user (not 'shared'), else first user
+  const defaultUser = (activeUser && USERS[activeUser]) ? activeUser : (userIds[0]||'');
+  document.getElementById('expUser').value=defaultUser;
+  document.getElementById('expName').value='';
+  document.getElementById('expAmount').value='';
+  document.getElementById('expDate').value=dateStr||new Date().toISOString().slice(0,10);
+  document.getElementById('expCat').innerHTML=getCatOptions();
+  document.getElementById('expNote').value='';
+  document.getElementById('addTitle').innerHTML=`Добавить расход <button class="modal-close" onclick="closeModal('addModal')">×</button>`;
+  document.getElementById('addModal').classList.add('open');
+}
+function openEditModal(exp){
+  editingId=exp.id;
+  const userIds=Object.keys(USERS);
+  document.getElementById('expUser').innerHTML=userIds.map(uid=>`<option value="${uid}">👤 ${USERS[uid].name}</option>`).join('');
+  document.getElementById('expUser').value=exp.user;
+  document.getElementById('expName').value=exp.name;
+  document.getElementById('expAmount').value=exp.amount;
+  document.getElementById('expDate').value=exp.date;
+  document.getElementById('expCat').innerHTML=getCatOptions();
+  document.getElementById('expCat').value=exp.category;
+  document.getElementById('expNote').value=exp.note||'';
+  document.getElementById('addTitle').innerHTML=`Редактировать <button class="modal-close" onclick="closeModal('addModal')">×</button>`;
+  document.getElementById('addModal').classList.add('open');
+  closeDetail();
+}
+function saveExpense(){
+  const user=document.getElementById('expUser').value;
+  const name=document.getElementById('expName').value.trim();
+  const amount=parseFloat(document.getElementById('expAmount').value);
+  const date=document.getElementById('expDate').value;
+  const category=document.getElementById('expCat').value;
+  const note=document.getElementById('expNote').value.trim();
+  if(!name||!amount||!date){showToast('❌ Заполните название, сумму и дату');return;}
+  if(editingId!==null){
+    const i=allExpenses.findIndex(e=>e.id===editingId);
+    if(i>=0) allExpenses[i]={...allExpenses[i],user,name,amount,date,category,note,ts:Date.now()};
+  } else {
+    allExpenses.push({id:Date.now()+Math.random(),user,name,amount,date,category,note,ts:Date.now()});
+  }
+  save(); closeModal('addModal'); renderCalendar();
+  if(currentView==='charts') renderCharts();
+  if(currentView==='plan')   renderPlan();
+  showToast('✅ Расход сохранён');
+}
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function getCatOptions(){ return Object.entries(CATS).map(([name,data])=>`<option value="${name}">${data.icon} ${name}</option>`).join(''); }
+
+// ════════════════════════════════════════
+//  DETAIL
+// ════════════════════════════════════════
+function showDetailById(id){
+  const exp=allExpenses.find(e=>String(e.id)===String(id));
+  if(exp) showDetail(exp);
+}
+function showDetail(exp){
+  detailId=exp.id;
+  const cat=CATS[exp.category]||CATS['Прочее'],uc=USERS[exp.user];
+  document.getElementById('dName').textContent=exp.name;
+  document.getElementById('dCat').textContent=`${cat.icon} ${exp.category}`;
+  document.getElementById('dCat').style.color=cat.color;
+  document.getElementById('dAmt').textContent=fmt(exp.amount);
+  const dt=new Date(exp.date+'T12:00:00');
+  document.getElementById('dDate').textContent=`${dt.getDate()} ${getMonthsG()[dt.getMonth()]} ${dt.getFullYear()}`;
+  document.getElementById('dNote').textContent=exp.note?`📝 ${exp.note}`:'';
+  document.getElementById('dUser').textContent=uc.name;
+  document.getElementById('dUser').style.background=uc.color;
+  document.getElementById('expDet').classList.add('open');
+}
+function closeDetail(){ document.getElementById('expDet').classList.remove('open'); detailId=null; }
+function editFromDetail(){ const e=allExpenses.find(x=>x.id===detailId); if(e)openEditModal(e); }
+function deleteFromDetail(){
+  if(!detailId||!confirm('Удалить расход?')) return;
+  allExpenses=allExpenses.filter(e=>e.id!==detailId);
+  save(); closeDetail(); renderCalendar();
+  if(currentView==='charts') renderCharts();
+  if(currentView==='plan')   renderPlan();
+  showToast('🗑 Удалено');
+}
+
+// ════════════════════════════════════════
+//  CHARTS
+// ════════════════════════════════════════
+function renderCharts(){
+  const exps=getMonthExp(activeUser),total=exps.reduce((s,e)=>s+e.amount,0);
+  const prevM=new Date(currentDate.getFullYear(),currentDate.getMonth()-1,1);
+  const prevPfx=`${prevM.getFullYear()}-${String(prevM.getMonth()+1).padStart(2,'0')}`;
+  const prevTotal=getExpenses(activeUser).filter(e=>e.date.startsWith(prevPfx)).reduce((s,e)=>s+e.amount,0);
+  const change=prevTotal?((total-prevTotal)/prevTotal*100).toFixed(0):0;
+  const topCat=Object.keys(CATS).reduce((a,c)=>{const s=exps.filter(e=>e.category===c).reduce((x,e)=>x+e.amount,0);return s>(a.sum||0)?{cat:c,sum:s}:a;},{});
+  const bTotal=Object.values(budgets).reduce((s,b)=>s+b,0);
+  document.getElementById('statsGrid').innerHTML=`
+    <div class="stat-card"><div class="stat-label">Потрачено</div><div class="stat-value" style="font-size:16px">${fmt(total)}</div><div class="stat-sub ${change>0?'up':'down'}">${change>0?'↑':'↓'} ${Math.abs(change)}%</div></div>
+    <div class="stat-card"><div class="stat-label">Транзакций</div><div class="stat-value">${exps.length}</div><div class="stat-sub">за месяц</div></div>
+    <div class="stat-card"><div class="stat-label">Топ</div><div class="stat-value" style="font-size:15px">${topCat.cat?CATS[topCat.cat].icon+' '+topCat.cat:'—'}</div><div class="stat-sub">${topCat.sum?Number(topCat.sum).toLocaleString('ru-RU'):'—'}</div></div>
+    <div class="stat-card"><div class="stat-label">Остаток</div><div class="stat-value" style="font-size:16px;color:var(--green)">${fmt(Math.max(0,bTotal-total))}</div><div class="stat-sub">из ${fmt(bTotal)}</div></div>`;
+
+  const cs=document.getElementById('compareSection');
+  if(activeUser==='shared'){
+    const userIds=Object.keys(USERS);
+    const u1id=userIds[0]||'', u2id=userIds[1]||'';
+    const u1E=getMonthExp(u1id),u2E=getMonthExp(u2id);
+    const bT=u1E.reduce((s,e)=>s+e.amount,0),vT=u2E.reduce((s,e)=>s+e.amount,0);
+    const comb=bT+vT||1,bP=(bT/comb*100).toFixed(0),vP=(vT/comb*100).toFixed(0);
+    const u1name=USERS[u1id]?.name||u1id, u2name=USERS[u2id]?.name||u2id;
+    cs.innerHTML=`<div class="compare-row"><div class="compare-card"><div class="compare-head"><div class="compare-dot" style="background:var(--u1)"></div><div class="compare-name" style="color:var(--u1)">${u1name}</div></div><div class="compare-total">${fmt(bT)}</div><div class="compare-sub">${u1E.length} тр · ${bP}%</div></div><div class="compare-card"><div class="compare-head"><div class="compare-dot" style="background:var(--u2)"></div><div class="compare-name" style="color:var(--u2)">${u2name}</div></div><div class="compare-total">${fmt(vT)}</div><div class="compare-sub">${u2E.length} тр · ${vP}%</div></div></div><div class="versus-bar"><div class="versus-fill1" style="width:${bP}%"></div><div class="versus-fill2" style="width:${vP}%"></div></div><div class="versus-labels"><span style="color:var(--u1)">${u1name} ${bP}%</span><span style="color:var(--u2)">${u2name} ${vP}%</span></div>`;
+  } else cs.innerHTML='';
+
+  const catT={};Object.keys(CATS).forEach(c=>catT[c]=0);
+  exps.forEach(e=>{if(catT[e.category]!==undefined) catT[e.category]+=e.amount;});
+  const maxV=Math.max(...Object.values(catT),1);
+  document.getElementById('barChart').innerHTML=Object.entries(catT).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).map(([cat,val])=>
+    `<div class="bar-item"><div class="bar-label">${CATS[cat].icon} ${cat}</div><div class="bar-track"><div class="bar-fill" style="width:${(val/maxV*100).toFixed(1)}%;background:${CATS[cat].color}"></div></div><div class="bar-amount">${Number(val).toLocaleString('ru-RU')}</div></div>`).join('');
+
+  const dData=Object.entries(catT).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  const cx=60,cy=60,r=52,ir=32; let ang=-Math.PI/2; const svgP=[];
+  dData.forEach(([cat,val])=>{
+    if(!total) return;
+    const sw=(val/total)*2*Math.PI,x1=cx+r*Math.cos(ang),y1=cy+r*Math.sin(ang),x2=cx+r*Math.cos(ang+sw),y2=cy+r*Math.sin(ang+sw);
+    const ix1=cx+ir*Math.cos(ang),iy1=cy+ir*Math.sin(ang),ix2=cx+ir*Math.cos(ang+sw),iy2=cy+ir*Math.sin(ang+sw);
+    const lg=sw>Math.PI?1:0;
+    svgP.push(`<path d="M${x1},${y1} A${r},${r} 0 ${lg},1 ${x2},${y2} L${ix2},${iy2} A${ir},${ir} 0 ${lg},0 ${ix1},${iy1} Z" fill="${CATS[cat].color}" opacity="0.9"/>`);
+    ang+=sw;
+  });
+  svgP.push(`<text x="${cx}" y="${cy+4}" text-anchor="middle" fill="var(--amount-color)" font-size="10" font-family="Syne" font-weight="700">${total>=1000?(total/1000).toFixed(0)+'к':total}</text>`);
+  document.getElementById('donutSvg').innerHTML=svgP.join('');
+  document.getElementById('donutLegend').innerHTML=dData.map(([cat,val])=>`<div class="legend-item"><div class="legend-dot" style="background:${CATS[cat].color}"></div><span class="legend-name">${cat}</span><span class="legend-pct">${total>0?(val/total*100).toFixed(0):0}%</span></div>`).join('');
+
+  const months=[];
+  for(let i=5;i>=0;i--){const d2=new Date(currentDate.getFullYear(),currentDate.getMonth()-i,1);const pfx=`${d2.getFullYear()}-${String(d2.getMonth()+1).padStart(2,'0')}`;const tot=getExpenses(activeUser).filter(e=>e.date.startsWith(pfx)).reduce((s,e)=>s+e.amount,0);months.push({label:getMonths()[d2.getMonth()].slice(0,3),total:tot});}
+  const maxT=Math.max(...months.map(m=>m.total),100);
+  const svg=document.getElementById('trendSvg'),W=svg.clientWidth||320,H=140;
+  const pts=months.map((m,i)=>[20+(i/(months.length-1))*(W-40),15+((1-m.total/maxT)*(H-30)),m]);
+  const pathD=pts.map((p,i)=>`${i===0?'M':'L'}${p[0]},${p[1]}`).join(' ');
+  svg.innerHTML=`<defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--accent)" stop-opacity="0.35"/><stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs><path d="${pathD} L${pts[pts.length-1][0]},${H} L${pts[0][0]},${H} Z" fill="url(#tg)"/><path d="${pathD}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>${pts.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="var(--accent)"/><text x="${p[0]}" y="${H+16}" text-anchor="middle" fill="var(--text3)" font-size="10" font-family="DM Sans">${p[2].label}</text><text x="${p[0]}" y="${p[1]-8}" text-anchor="middle" fill="var(--amount-color)" font-size="10" font-family="DM Sans" font-weight="600">${p[2].total>0?Number(p[2].total).toLocaleString('ru-RU'):''}</text>`).join('')}`;
+}
+
+// ════════════════════════════════════════
+//  PLAN
+// ════════════════════════════════════════
+function renderPlan(){
+  document.getElementById('planMonthLabel').textContent=`${getMonths()[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+  const exps=getMonthExp(activeUser),catT={};
+  Object.keys(CATS).forEach(c=>catT[c]=0);
+  exps.forEach(e=>{if(catT[e.category]!==undefined) catT[e.category]+=e.amount;});
+  const planHtml=Object.keys(CATS).map(cat=>{
+    const sp=catT[cat],bud=budgets[cat]||0,pct=bud?Math.min(sp/bud*100,100):0,over=sp>bud&&bud>0;
+    return `<div class="plan-card">
+      <div class="plan-card-header"><div class="plan-cat"><div class="plan-cat-dot" style="background:${CATS[cat].color}"></div>${CATS[cat].icon} ${cat}</div><span onclick="openPlanModal()" style="font-size:11px;color:var(--accent);cursor:pointer">✏️</span></div>
+      <div class="plan-amounts"><span><span class="av">${Number(sp).toLocaleString('ru-RU')}</span> потрачено</span><span><span class="av">${Number(bud).toLocaleString('ru-RU')}</span> лимит</span></div>
+      <div class="plan-bar-track"><div class="plan-bar-fill" style="width:${pct}%;background:${over?'var(--red)':CATS[cat].color}"></div></div>
+      <div class="plan-pct">${bud?`${pct.toFixed(0)}%${over?' — превышен!':''}`:'Лимит не задан'}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('planGrid').innerHTML=planHtml;
+}
+function openPlanModal(){
+  document.getElementById('budgetFields').innerHTML=Object.keys(CATS).map(cat=>`<div class="form-group"><label class="form-label">${CATS[cat].icon} ${cat}</label><input class="form-input" id="bud_${cat}" type="number" value="${budgets[cat]||''}" placeholder="0" min="0" inputmode="decimal"/></div>`).join('');
+  document.getElementById('planModal').classList.add('open');
+}
+function saveBudgets(){
+  Object.keys(CATS).forEach(cat=>{const v=parseFloat(document.getElementById('bud_'+cat)?.value||0);budgets[cat]=v||0;});
+  saveBud(); closeModal('planModal');
+  if(currentView==='plan')   renderPlan();
+  if(currentView==='charts') renderCharts();
+}
+
+// ════════════════════════════════════════
+//  SETTINGS UI
+// ════════════════════════════════════════
+// ════════════════════════════════════════
+//  I18N APPLY
+// ════════════════════════════════════════
+function applyLang(newLang, save_){
+  const prevLang = lang;
+  lang = newLang;
+  const tr = I18N[lang];
+
+  // Translate built-in category names in CATS
+  // Build reverse map: any localized name -> canonical RU key
+  const reverseMap = {};
+  Object.keys(I18N).forEach(l=>{
+    if(I18N[l].cats) Object.entries(I18N[l].cats).forEach(([ruKey,locName])=>{ reverseMap[locName]=ruKey; });
+  });
+  // Also map RU keys to themselves
+  Object.keys(DEFAULT_CATS).forEach(k=>{ reverseMap[k]=k; });
+
+  if(tr.cats){
+    const newCats = {};
+    Object.entries(CATS).forEach(([name, data])=>{
+      const ruKey = reverseMap[name] || name; // find original RU key
+      const newName = (data.builtin && tr.cats[ruKey]) ? tr.cats[ruKey] : name;
+      // Also update expenses
+      if(newName !== name){
+        allExpenses.forEach(e=>{ if(e.category===name) e.category=newName; });
+      }
+      newCats[newName] = {...data};
+    });
+    Object.keys(CATS).forEach(k=>delete CATS[k]);
+    Object.assign(CATS, newCats);
+    // Update catOrder in cfg
+    if(cfg.catOrder) cfg.catOrder = cfg.catOrder.map(n=>{ const ruKey=reverseMap[n]||n; return (tr.cats[ruKey])||n; });
+  } // end if tr.cats
+
+  // Update nav labels
+  const navItems = document.querySelectorAll('.nav-item .nav-label');
+  const navKeys = ['calendar','analytics','plan','settings'];
+  navItems.forEach((el,i)=>{ if(navKeys[i]) el.textContent=t(navKeys[i]); });
+  // Update sidebar nav
+  document.querySelectorAll('.sd-nav-item').forEach(el=>{
+    const view = el.dataset.view;
+    if(view && t(view)!==view) el.querySelector('.sd-nav-label') && (el.querySelector('.sd-nav-label').textContent=t(view));
+  });
+
+  // Update MONTHS/DAYS globals used in calendar
+  window._MONTHS   = tr.months;
+  window._MONTHS_G = tr.months_g;
+  window._DAYS     = tr.days;
+
+  if(save_){
+    cfg.lang = lang;
+    saveCfg();
+    if(allExpenses.length) save(); // save translated expenses
+  }
+
+  // Update all data-i18n elements
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const key = el.getAttribute('data-i18n');
+    const val = t(key);
+    if(val !== key) el.textContent = val;
+  });
+
+  buildSidebarCats();
+  if(document.getElementById('calContainer')) {
+    renderCalendar();
+    if(currentView==='charts')   renderCharts();
+    if(currentView==='plan')     renderPlan();
+    if(currentView==='settings') renderSettingsUI();
+    updateBadges();
+  }
+}
+
+function saveLangSetting(){
+  const sel = document.getElementById('settingLang');
+  if(!sel) return;
+  applyLang(sel.value, true);
+  showToast(t('saved'));
+}
+
+// ════════════════════════════════════════
+//  CATEGORY ORDER
+// ════════════════════════════════════════
+
+
+// ════════════════════════════════════════
+//  CATEGORY DRAG-AND-DROP
+// ════════════════════════════════════════
+let _dragCat = null;
+
+function catDragStart(ev){
+  _dragCat = ev.currentTarget.dataset.cat;
+  ev.currentTarget.style.opacity = '0.4';
+  ev.dataTransfer.effectAllowed = 'move';
+}
+
+function catDragOver(ev){
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'move';
+  ev.currentTarget.style.background = 'rgba(108,141,250,0.15)';
+  ev.currentTarget.style.borderColor = 'rgba(108,141,250,0.5)';
+}
+
+function catDragLeave(ev){
+  ev.currentTarget.style.background = '';
+  ev.currentTarget.style.borderColor = '';
+}
+
+function catDrop(ev){
+  ev.preventDefault();
+  const target = ev.currentTarget.dataset.cat;
+  ev.currentTarget.style.background = '';
+  ev.currentTarget.style.borderColor = '';
+  if(!_dragCat || _dragCat === target) return;
+  const keys = Object.keys(CATS);
+  const fromIdx = keys.indexOf(_dragCat);
+  const toIdx   = keys.indexOf(target);
+  if(fromIdx === -1 || toIdx === -1) return;
+  // Reorder
+  keys.splice(fromIdx, 1);
+  keys.splice(toIdx, 0, _dragCat);
+  const newCats = {};
+  keys.forEach(k => { newCats[k] = CATS[k]; });
+  Object.keys(CATS).forEach(k => delete CATS[k]);
+  Object.assign(CATS, newCats);
+  cfg.catOrder = keys;
+  saveCfg();
+  buildSidebarCats();
+  renderCatManageList();
+  renderCatColorList();
+  _dragCat = null;
+}
+
+// Touch drag for mobile
+function initCatTouchDrag(){
+  const rows = document.querySelectorAll('.cat-manage-row');
+  rows.forEach(row => {
+    const handle = row.querySelector('.cat-drag-handle');
+    if(!handle) return;
+    let startY, startIdx, clone;
+
+    handle.addEventListener('touchstart', ev => {
+      ev.preventDefault();
+      startY = ev.touches[0].clientY;
+      startIdx = [...rows].indexOf(row);
+      row.style.opacity = '0.4';
+    }, {passive:false});
+
+    handle.addEventListener('touchmove', ev => {
+      ev.preventDefault();
+      const y = ev.touches[0].clientY;
+      const delta = y - startY;
+      // Find which row we're over
+      document.querySelectorAll('.cat-manage-row').forEach((r,i) => {
+        const rect = r.getBoundingClientRect();
+        if(y >= rect.top && y <= rect.bottom && r !== row){
+          r.style.background = 'rgba(108,141,250,0.15)';
+        } else {
+          r.style.background = '';
         }
       });
-    });
+    }, {passive:false});
+
+    handle.addEventListener('touchend', ev => {
+      ev.preventDefault();
+      row.style.opacity = '';
+      const y = ev.changedTouches[0].clientY;
+      let targetRow = null;
+      document.querySelectorAll('.cat-manage-row').forEach(r => {
+        r.style.background = '';
+        const rect = r.getBoundingClientRect();
+        if(y >= rect.top && y <= rect.bottom && r !== row) targetRow = r;
+      });
+      if(targetRow){
+        const fromCat = row.dataset.cat;
+        const toCat   = targetRow.dataset.cat;
+        const keys = Object.keys(CATS);
+        const fromIdx = keys.indexOf(fromCat);
+        const toIdx   = keys.indexOf(toCat);
+        if(fromIdx !== -1 && toIdx !== -1){
+          keys.splice(fromIdx, 1);
+          keys.splice(toIdx, 0, fromCat);
+          const newCats = {};
+          keys.forEach(k => { newCats[k] = CATS[k]; });
+          Object.keys(CATS).forEach(k => delete CATS[k]);
+          Object.assign(CATS, newCats);
+          cfg.catOrder = keys;
+          saveCfg();
+          buildSidebarCats();
+          renderCatManageList();
+          renderCatColorList();
+        }
+      }
+    }, {passive:false});
   });
 }
 
-// ══════════════════════════════════════
-//  ACCOUNT CRUD
-// ══════════════════════════════════════
-function openCreateAccount(){
-  _editingAccId = null;
-  document.getElementById('accId').value   = '';
-  document.getElementById('accName').value = '';
-  document.getElementById('accId').disabled = false;
-  document.getElementById('modalAccountTitle').textContent = 'Новый аккаунт';
-  _selAccColor = COLORS[0];
-  renderColorPicker('accColorPicker', COLORS, _selAccColor, c=>{ _selAccColor=c; });
-  openModal('modalAccount');
-}
+function renderSettingsUI(){
+  const el=document.getElementById('amtPicker');
+  if(el){ el.value=amountColor; document.getElementById('amtHex').value=amountColor; updateAmtPreview(amountColor); }
+  const cs=document.getElementById('settingCurrency');
+  if(cs) cs.value=currency;
+  const ls=document.getElementById('settingLang');
+  if(ls) ls.value=lang;
+  renderCatManageList();
+  renderCatColorList();
+  renderUserSettings();
+  buildSidebarCats();
+  // Restore firebase UI — always show current URL
+  const shownUrl  = cfg.fbUrl  || DEFAULT_FB_URL;
+  const shownRoom = cfg.fbRoom || DEFAULT_FB_ROOM;
+  document.getElementById('fbUrl').value  = shownUrl;
+  document.getElementById('fbRoom').value = shownRoom;
+  // Update translatable UI elements
+  const _ti = (id, key) => { const e=document.getElementById(id); if(e) e.textContent=t(key); };
+  _ti('s_lang_h', 's_lang'); _ti('s_lang_btn','save'); _ti('s_data_h','s_data');
+  // Nav labels
+  const navLabels = document.querySelectorAll('.nav-label');
+  const navViews  = ['calendar','analytics','plan','settings'];
+  navLabels.forEach((el,i)=>{ if(navViews[i]) el.textContent=t(navViews[i]); });
 
-function saveAccount(){
-  const id   = document.getElementById('accId').value.trim();
-  const name = document.getElementById('accName').value.trim();
-  if(!id)  { showToast('❌ Введите ID аккаунта'); return; }
-  if(!name){ showToast('❌ Введите название'); return; }
-  if(!_editingAccId && accounts[id]){ showToast('❌ Аккаунт с таким ID уже существует'); return; }
-
-  const accData = { name, color: _selAccColor };
-  if(_editingAccId){
-    metaRef.child(_editingAccId).update(accData);
-    showToast(`✅ Аккаунт «${name}» обновлён`);
-  } else {
-    metaRef.child(id).set(accData);
-    showToast(`✅ Аккаунт «${name}» создан`);
+  if(fbConnected){
+    document.getElementById('fbStatus').className='firebase-status connected';
+    document.getElementById('fbStatus').innerHTML='<span>●</span>&nbsp;Подключено · ' + shownRoom;
+    document.getElementById('btnDisconnect').style.display='block';
   }
-  closeModal('modalAccount');
 }
 
-function deleteAccount(accId, accName){
-  if(!confirm(`Удалить аккаунт «${accName}»?\n\nВНИМАНИЕ: Все данные бюджета этого аккаунта также будут удалены!`)) return;
-  metaRef.child(accId).remove();
-  db.ref('finflow/'+accId).remove();
-  showToast(`🗑 Аккаунт «${accName}» удалён`);
+function renderUserSettings(){
+  const el=document.getElementById('userSettingsList');
+  if(!el) return;
+  el.innerHTML=Object.entries(USERS).map(([uid,u])=>`
+    <div style="background:var(--surface2);border-radius:12px;border:1px solid var(--border);padding:14px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div style="width:32px;height:32px;border-radius:9px;background:${u.color};display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:white" id="uAv-${uid}">${u.name[0]}</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:${u.color}" id="uLabel-${uid}">${u.name}</div>
+      </div>
+      <div class="form-group"><label class="form-label">Имя</label><input class="form-input" id="uname_${uid}" value="${u.name}" placeholder="Имя" oninput="previewUserCard('${uid}')"></div>
+      <div class="form-group" style="margin-bottom:8px"><label class="form-label">Цвет</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="color" class="cp2" id="ucolor_${uid}" value="${u.color}" oninput="previewUserCard('${uid}')" style="width:46px;height:46px;border-radius:10px;">
+          <div style="display:flex;flex-wrap:wrap;gap:5px;flex:1">${PALETTE_COLORS.slice(0,10).map(c=>`<div style="width:26px;height:26px;background:${c};border-radius:6px;cursor:pointer;border:2px solid transparent" onclick="quickSetUserColor('${uid}','${c}')"></div>`).join('')}</div>
+        </div>
+      </div>
+      <button class="btn btn-primary" style="font-size:13px;padding:11px" onclick="saveUserSettings('${uid}')">✅ Сохранить</button>
+    </div>`).join('');
 }
-
-// ══════════════════════════════════════
-//  USER CRUD
-// ══════════════════════════════════════
-function openAddUser(accId){
-  _addingToAccId = accId;
-  _editingUserId = null;
-  const acc = accounts[accId];
-  document.getElementById('modalUserTitle').textContent = 'Новый пользователь';
-  document.getElementById('modalUserSub').textContent   = `Аккаунт: ${acc.name}`;
-  document.getElementById('userName').value     = '';
-  document.getElementById('userLogin').value    = '';
-  document.getElementById('userPassword').value = '';
-  document.getElementById('userRole').value     = 'editor';
-  document.getElementById('saveUserBtn').textContent = 'Добавить';
-  _selUserColor = COLORS[Math.floor(Math.random()*COLORS.length)];
-  renderColorPicker('userColorPicker', COLORS, _selUserColor, c=>{ _selUserColor=c; });
-  openModal('modalUser');
+function previewUserCard(uid){
+  const nameEl=document.getElementById('uname_'+uid), colorEl=document.getElementById('ucolor_'+uid);
+  if(!nameEl||!colorEl) return;
+  const name=nameEl.value.trim()||USERS[uid].name, color=colorEl.value;
+  const av=document.getElementById('uAv-'+uid), lb=document.getElementById('uLabel-'+uid);
+  if(av){av.style.background=color;av.textContent=name[0]||'?';}
+  if(lb){lb.style.color=color;lb.textContent=name;}
 }
-
-function openEditUser(accId, userId){
-  _addingToAccId = accId;
-  _editingUserId = userId;
-  const u = accounts[accId].users[userId];
-  const acc = accounts[accId];
-  document.getElementById('modalUserTitle').textContent = 'Редактировать пользователя';
-  document.getElementById('modalUserSub').textContent   = `Аккаунт: ${acc.name}`;
-  document.getElementById('userName').value     = u.name  || '';
-  document.getElementById('userLogin').value    = u.login || userId;
-  document.getElementById('userPassword').value = u.password || '';
-  document.getElementById('userRole').value     = u.role  || 'editor';
-  document.getElementById('saveUserBtn').textContent = 'Сохранить';
-  _selUserColor = u.color || COLORS[0];
-  renderColorPicker('userColorPicker', COLORS, _selUserColor, c=>{ _selUserColor=c; });
-  openModal('modalUser');
+function quickSetUserColor(uid,color){ const el=document.getElementById('ucolor_'+uid); if(el){el.value=color;previewUserCard(uid);} }
+function saveUserSettings(uid){
+  const name=document.getElementById('uname_'+uid)?.value.trim();
+  const color=document.getElementById('ucolor_'+uid)?.value;
+  if(!name){showToast('❌ Имя не может быть пустым');return;}
+  USERS[uid].name=name; USERS[uid].color=color;
+  if(!cfg.users) cfg.users={};
+  cfg.users[uid]={name,color};
+  saveCfg();
+  const userIds=Object.keys(USERS);
+  if(userIds[0]) document.documentElement.style.setProperty('--u1',USERS[userIds[0]].color);
+  if(userIds[1]) document.documentElement.style.setProperty('--u2',USERS[userIds[1]].color);
+  updateSidebarUsers();
+  renderCalendar();
+  if(currentView==='charts') renderCharts();
+  renderUserSettings();
+  showToast(`✅ «${name}» обновлён`);
 }
-
-function saveUser(){
-  const name     = document.getElementById('userName').value.trim();
-  const login    = document.getElementById('userLogin').value.trim();
-  const password = document.getElementById('userPassword').value.trim();
-  const role     = document.getElementById('userRole').value;
-  if(!name)    { showToast('❌ Введите имя'); return; }
-  if(!login)   { showToast('❌ Введите логин'); return; }
-  if(!password || password.length < 3){ showToast('❌ Пароль минимум 3 символа'); return; }
-
-  const userId   = _editingUserId || login;
-  const userData = { name, login, password, role, color: _selUserColor };
-  metaRef.child(_addingToAccId).child('users').child(userId).set(userData);
-  showToast(`✅ Пользователь «${name}» ${_editingUserId ? 'обновлён' : 'добавлен'}`);
-  closeModal('modalUser');
-}
-
-function deleteUser(accId, userId, userName){
-  if(!confirm(`Удалить пользователя «${userName}»?`)) return;
-  metaRef.child(accId).child('users').child(userId).remove();
-  showToast(`🗑 Пользователь «${userName}» удалён`);
-}
-
-// ══════════════════════════════════════
-//  UI HELPERS
-// ══════════════════════════════════════
-function renderColorPicker(containerId, colors, selected, onChange){
-  const el = document.getElementById(containerId);
-  el.innerHTML = colors.map(c=>`
-    <div class="color-dot ${c===selected?'selected':''}" style="background:${c}"
-      onclick="selectColor('${containerId}','${c}')"></div>
-  `).join('');
-  el._onChange = onChange;
-}
-
-function selectColor(containerId, color){
-  const el = document.getElementById(containerId);
-  el.querySelectorAll('.color-dot').forEach(d=>{
-    d.classList.toggle('selected', d.style.background===color || d.style.backgroundColor===color);
+function updateSidebarUsers(){
+  Object.keys(USERS).forEach(uid=>{
+    const u=USERS[uid];
+    const pa=document.getElementById('pilAv-'+uid); if(pa){pa.style.background=u.color;pa.textContent=u.name[0];}
+    const pn=document.getElementById('pilName-'+uid); if(pn) pn.textContent=u.name;
+    const pb=document.getElementById('pilBadge-'+uid); if(pb) pb.style.background=u.color;
+    const sa=document.getElementById('sdAv-'+uid); if(sa){sa.style.background=u.color;sa.textContent=u.name[0];}
+    const sn=document.getElementById('sdName-'+uid); if(sn) sn.textContent=u.name;
   });
-  if(el._onChange) el._onChange(color);
-  if(containerId==='accColorPicker')  _selAccColor  = color;
-  if(containerId==='userColorPicker') _selUserColor = color;
 }
 
-function openModal(id){ document.getElementById(id).classList.add('open'); }
-function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function renderCatManageList(){
+  const el=document.getElementById('catManageList'); if(!el) return;
+  const keys = Object.keys(CATS);
+  el.innerHTML=keys.map((name,i)=>{
+    const data=CATS[name];
+    return `<div class="cat-manage-row" draggable="true" data-cat="${name}"
+      style="cursor:default"
+      ondragstart="catDragStart(event)"
+      ondragover="catDragOver(event)"
+      ondragleave="catDragLeave(event)"
+      ondrop="catDrop(event)">
+      <span class="cat-drag-handle" title="Перетягнути">≡</span>
+      <span style="font-size:18px">${data.icon}</span>
+      <div style="width:12px;height:12px;border-radius:50%;background:${data.color};flex-shrink:0"></div>
+      <span class="cat-manage-name">${name}</span>
+      <button onclick="openEditCat('${name}')" style="background:var(--surface3);border:1px solid var(--border);color:var(--text2);border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;">✏️</button>
+      <button class="cat-manage-del" onclick="deleteCat('${name}')">🗑</button>
+    </div>`;
+  }).join('');
+  initCatTouchDrag();
+}
+function renderCatColorList(){
+  const el=document.getElementById('catColorList'); if(!el) return;
+  el.innerHTML=Object.keys(CATS).map(cat=>`
+    <div class="color-row">
+      <div class="crLeft"><div class="cr-dot" id="crdot-${cat}" style="background:${CATS[cat].color}"></div><span style="font-size:13px;font-weight:500;color:var(--text)">${CATS[cat].icon} ${cat}</span></div>
+      <div class="crRight">
+        <input type="color" class="cp2" id="crpick-${cat}" value="${CATS[cat].color}" oninput="applyCatColor('${cat}',this.value)">
+        ${CATS[cat].builtin?`<button class="creset" onclick="resetCatColor('${cat}')">↺</button>`:''}
+      </div>
+    </div>`).join('');
+}
+function updateAmtPreview(c){ const e=document.getElementById('pvAmt'); if(e){ e.style.color=c; e.textContent='28 450 '+(currency||'€'); } }
+function syncAmtPicker(v){ document.getElementById('amtHex').value=v; updateAmtPreview(v); }
+function syncAmtHex(v){ if(/^#[0-9a-fA-F]{6}$/.test(v)){document.getElementById('amtPicker').value=v;updateAmtPreview(v);} }
+function setAmtColor(c){ document.getElementById('amtPicker').value=c; document.getElementById('amtHex').value=c; updateAmtPreview(c); }
+function saveAmtColor(){ amountColor=document.getElementById('amtPicker').value; cfg.amountColor=amountColor; saveCfg(); document.documentElement.style.setProperty('--amount-color',amountColor); showToast('✅ Цвет обновлён'); }
+function applyCatColor(cat,color){ CATS[cat].color=color; const d=document.getElementById('crdot-'+cat); if(d)d.style.background=color; if(!cfg.catColors)cfg.catColors={}; cfg.catColors[cat]=color; saveCfg(); renderCalendar(); }
+function resetCatColor(cat){ const def=DEFAULT_CATS[cat]?.color; if(!def)return; CATS[cat].color=def; const p=document.getElementById('crpick-'+cat),d=document.getElementById('crdot-'+cat); if(p)p.value=def; if(d)d.style.background=def; if(!cfg.catColors)cfg.catColors={}; cfg.catColors[cat]=def; saveCfg(); renderCalendar(); }
+function resetAllCats(){ Object.keys(DEFAULT_CATS).forEach(c=>{CATS[c].color=DEFAULT_CATS[c].color;}); cfg.catColors={}; Object.keys(DEFAULT_CATS).forEach(c=>cfg.catColors[c]=DEFAULT_CATS[c].color); saveCfg(); renderSettingsUI(); renderCalendar(); }
+function saveCurrencySetting(){ currency=document.getElementById('settingCurrency').value; cfg.currency=currency; saveCfg(); renderCalendar(); if(currentView==='charts')renderCharts(); if(currentView==='plan')renderPlan(); updateAmtPreview(document.getElementById('amtPicker')?.value||amountColor); showToast('✅ Валюта сохранена'); }
 
-function showToast(msg){
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'), 3000);
+// ════════════════════════════════════════
+//  CUSTOM CATS
+// ════════════════════════════════════════
+function buildSidebarCats(){
+  const el=document.getElementById('sdCatList'); if(!el) return;
+  el.innerHTML=Object.entries(CATS).map(([name,data])=>
+    `<div class="sd-item" onclick="filterCat('${name}')"><span class="sd-icon">${data.icon}</span>${name}</div>`).join('');
+}
+function filterCat(cat){ activeFilter=cat; renderCalendar(); }
+function toggleEmojiPicker(ev){
+  ev.stopPropagation();
+  const ep=document.getElementById('emojiPicker');
+  const btn=document.getElementById('emojiPickerBtn');
+  const rect=btn.getBoundingClientRect();
+  ep.style.top=(rect.bottom+6)+'px';
+  ep.style.left=Math.min(rect.left,window.innerWidth-290)+'px';
+  ep.classList.toggle('open');
+}
+function initEmojiPicker(){
+  const ep=document.getElementById('emojiPicker');
+  ep.innerHTML=EMOJI_LIST.map(e=>`<button class="ep-emoji" onclick="selectEmoji('${e}')">${e}</button>`).join('');
+  const ep2=document.getElementById('editCatEmojiPicker');
+  if(ep2) ep2.innerHTML=EMOJI_LIST.map(e=>`<button class="ep-emoji" onclick="selectEditCatEmoji('${e}')">${e}</button>`).join('');
+}
+function selectEmoji(e){ selectedNewCatEmoji=e; document.getElementById('selectedEmoji').textContent=e; document.getElementById('emojiPicker').classList.remove('open'); }
+function initColorPalette(){
+  const pal=document.getElementById('newCatColorPalette');
+  pal.innerHTML=PALETTE_COLORS.map(c=>`<div class="cp-swatch" style="background:${c}" onclick="selectNewCatColor('${c}',this)" title="${c}"></div>`).join('');
+}
+function selectNewCatColor(color,el){ document.getElementById('newCatColor').value=color; document.querySelectorAll('.cp-swatch').forEach(s=>s.classList.remove('selected')); el.classList.add('selected'); }
+function addCustomCat(){
+  const name=document.getElementById('newCatName').value.trim();
+  if(!name){showToast('❌ Введите название');return;}
+  if(CATS[name]){showToast('❌ Уже существует');return;}
+  const color=document.getElementById('newCatColor').value;
+  CATS[name]={icon:selectedNewCatEmoji,color,builtin:false};
+  if(!cfg.customCats)cfg.customCats={};
+  cfg.customCats[name]={icon:selectedNewCatEmoji,color};
+  saveCfg();
+  document.getElementById('newCatName').value='';
+  selectedNewCatEmoji='🏷'; document.getElementById('selectedEmoji').textContent='🏷';
+  buildSidebarCats(); renderCatManageList(); renderCatColorList();
+  showToast(`✅ Категория «${name}» добавлена`);
+}
+function deleteCat(name){
+  if(!confirm(`Удалить «${name}»?`)) return;
+  delete CATS[name];
+  if(cfg.customCats) delete cfg.customCats[name];
+  if(cfg.catColors)  delete cfg.catColors[name];
+  saveCfg(); buildSidebarCats(); renderCatManageList(); renderCatColorList();
+  showToast(`🗑 «${name}» удалена`);
 }
 
-// Close modal on overlay click
-document.querySelectorAll('.modal-overlay').forEach(o=>{
-  o.addEventListener('click', e=>{ if(e.target===o) closeModal(o.id); });
+let _editingCatName = null;
+function openEditCat(name){
+  const cat = CATS[name]; if(!cat) return;
+  _editingCatName = name;
+  document.getElementById('editCatOldName').value = name;
+  document.getElementById('editCatName').value = name;
+  document.getElementById('editCatName').disabled = false;
+  document.getElementById('editCatColor').value = cat.color || '#6c8dfa';
+  document.getElementById('editCatEmoji').textContent = cat.icon || '🏷';
+  document.getElementById('selectedEditEmoji').value = cat.icon || '🏷';
+  // Build emoji picker for edit modal
+  const ep = document.getElementById('editEmojiPicker');
+  if(ep) ep.innerHTML = EMOJI_LIST.map(e=>`<button class="ep-emoji" onclick="selectEditEmoji('${e}')">${e}</button>`).join('');
+  document.getElementById('editCatModal').classList.add('open');
+}
+function selectEditEmoji(e){
+  document.getElementById('editCatEmoji').textContent = e;
+  document.getElementById('selectedEditEmoji').value = e;
+  document.getElementById('editEmojiPicker').classList.remove('open');
+}
+function toggleEditEmojiPicker(ev){
+  ev.stopPropagation();
+  document.getElementById('editEmojiPicker').classList.toggle('open');
+}
+function saveEditCat(){
+  const oldName = _editingCatName;
+  const cat = CATS[oldName]; if(!cat) return;
+  const newName  = document.getElementById('editCatName').value.trim();
+  const newColor = document.getElementById('editCatColor').value;
+  const newIcon  = document.getElementById('selectedEditEmoji').value || cat.icon;
+  if(!newName){ showToast('❌ Введите название'); return; }
+  if(newName !== oldName && CATS[newName]){ showToast('❌ Такая категория уже есть'); return; }
+
+  // Update CATS
+  const updated = {...cat, icon: newIcon, color: newColor};
+  if(newName !== oldName){
+    delete CATS[oldName];
+    // Move expenses to new name
+    allExpenses.forEach(e=>{ if(e.category===oldName) e.category=newName; });
+    save();
+  }
+  CATS[newName] = updated;
+
+  // Update cfg — works for both builtin and custom
+  if(!cfg.customCats) cfg.customCats = {};
+  delete cfg.customCats[oldName];
+  cfg.customCats[newName] = {icon:newIcon, color:newColor};
+  if(!cfg.catColors) cfg.catColors={};
+  if(oldName !== newName) delete cfg.catColors[oldName];
+  cfg.catColors[newName] = newColor;
+
+  saveCfg();
+  buildSidebarCats(); renderCatManageList(); renderCatColorList(); renderCalendar();
+  document.getElementById('editCatModal').classList.remove('open');
+  showToast(`✅ Категория обновлена`);
+}
+
+// ════════════════════════════════════════
+//  EXCEL EXPORT
+// ════════════════════════════════════════
+function exportExcel(){
+  try{
+    const wb=XLSX.utils.book_new();
+    const makeSheet=(user)=>{
+      const data=user==='shared'?allExpenses:allExpenses.filter(e=>e.user===user);
+      const headers=['Дата','Название','Категория','Сумма ('+currency+')','Пользователь','Заметка'];
+      const rows=[headers];
+      [...data].sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>rows.push([e.date,e.name,e.category,e.amount,USERS[e.user]?.name||e.user,e.note||'']));
+      rows.push([]); rows.push(['ИТОГО','','',data.reduce((s,e)=>s+e.amount,0),'','']);
+      return XLSX.utils.aoa_to_sheet(rows);
+    };
+    Object.keys(USERS).forEach(uid=>{
+      XLSX.utils.book_append_sheet(wb,makeSheet(uid),USERS[uid].name);
+    });
+    XLSX.utils.book_append_sheet(wb,makeSheet('shared'),'Все расходы');
+    const now=new Date();
+    XLSX.writeFile(wb,`FinFlow_${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}.xlsx`);
+    showToast('📊 Excel скачан!');
+  }catch(e){alert('Ошибка: '+e.message);}
+}
+function exportJSON(){
+  const blob=new Blob([JSON.stringify({allExpenses,budgets,cfg},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`finflow-${new Date().toISOString().slice(0,10)}.json`;a.click();
+  showToast('📋 JSON скачан!');
+}
+function clearAll(){
+  if(!confirm('Удалить ВСЕ расходы?')) return;
+  allExpenses=[]; save(); renderCalendar();
+  if(currentView==='charts') renderCharts();
+  if(currentView==='plan')   renderPlan();
+  showToast('🗑 Данные очищены');
+}
+
+// ════════════════════════════════════════
+//  CLICK OUTSIDE
+// ════════════════════════════════════════
+document.addEventListener('click',e=>{
+  const ep=document.getElementById('emojiPicker');
+  const btn=document.getElementById('emojiPickerBtn');
+  if(ep&&ep.classList.contains('open')&&!ep.contains(e.target)&&(!btn||!btn.contains(e.target))) ep.classList.remove('open');
 });
 
-// Auto-focus on login
-window.addEventListener('load', ()=>{ document.getElementById('masterInput').focus(); });
-</script>
+// ════════════════════════════════════════
+//  INIT — wrapped in try/catch for iOS safety
+// ════════════════════════════════════════
+// ════════════════════════════════════════
+//  MULTI-ACCOUNT AUTH
+// ════════════════════════════════════════
+// Accounts loaded from Firebase meta on startup.
+// Login flow: Step1(pick account) → Step2(pick user) → Step3(enter password)
+
+let _allAccounts  = {};   // loaded from Firebase
+let _pendingAcc   = null; // { accId, accData }
+let _pendingUser  = null; // { userId, userData }
+
+const APP_VER = 'pro1';
+
+// ── Load accounts from Firebase ──
+// Always uses a single dedicated app instance for meta reads
+let _metaApp = null;
+
+function _getMetaApp(){
+  // Try to reuse existing app
+  try{ return firebase.app('ff_meta'); }catch(e){}
+  // Create fresh
+  try{ return firebase.initializeApp(Object.assign({}, FB_CONFIG), 'ff_meta'); }catch(e){}
+  // Fallback to default
+  try{ return firebase.app(); }catch(e){}
+  return null;
+}
+
+function loadAccounts(cb){
+  if(!window.firebase){ showAccountsError('Firebase SDK не загружен'); return; }
+
+  _metaApp = _getMetaApp();
+  if(!_metaApp){ showAccountsError('Ошибка Firebase SDK'); return; }
+
+  const doRead = () => {
+    _metaApp.database().ref(META_REF).once('value').then(snap=>{
+      _allAccounts = {};
+      const data = snap.val() || {};
+      Object.entries(data).forEach(([accId, accData])=>{
+        if(accId === '_system') return;
+        _allAccounts[accId] = {
+          name:  accData.name  || accId,
+          color: accData.color || '#6c8dfa',
+          users: accData.users || {},
+        };
+      });
+      if(cb) cb();
+    }).catch(err=>{ showAccountsError('Ошибка загрузки: ' + err.message); });
+  };
+
+  // Try anonymous auth first; if it fails or SDK missing — read anyway (open rules fallback)
+  try{
+    const auth = _metaApp.auth();
+    if(auth.currentUser){
+      doRead();
+      return;
+    }
+    // Wait for auth state — more reliable than .then() on signInAnonymously
+    let authDone = false;
+    const unsub = auth.onAuthStateChanged(user=>{
+      if(authDone) return;
+      authDone = true;
+      unsub();
+      doRead();
+    });
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+      .then(()=> auth.signInAnonymously())
+      .catch(e=>{
+        console.warn('Anonymous auth failed:', e.message);
+        if(!authDone){ authDone=true; try{unsub();}catch(e2){} doRead(); }
+      });
+    // Safety timeout — if auth hangs for 5s, read anyway
+    setTimeout(()=>{
+      if(!authDone){ authDone=true; try{unsub();}catch(e){} doRead(); }
+    }, 5000);
+  } catch(e){
+    // No auth SDK
+    doRead();
+  }
+}
+
+function showAccountsError(msg){
+  const list = document.getElementById('accountsList');
+  if(list) list.innerHTML = `<div style="text-align:center;padding:24px;color:#ff6b6b;font-size:13px;">❌ ${msg}<br><br><span style="color:#5a6478;cursor:pointer;" onclick="loadAccounts(renderAccounts)">Повторить</span></div>`;
+}
+
+// ── Step 1: Render account list ──
+function renderAccounts(){
+  const list = document.getElementById('accountsList');
+  if(!list) return;
+  const entries = Object.entries(_allAccounts);
+  if(!entries.length){
+    list.innerHTML = `<div style="text-align:center;padding:24px;color:#5a6478;font-size:13px;">Нет доступных аккаунтов.<br>Создайте их в панели администратора.</div>`;
+    return;
+  }
+  list.innerHTML = entries.map(([accId, acc])=>`
+    <div onclick="goToStep2('${accId}')"
+      style="display:flex;align-items:center;gap:14px;background:#1e2330;border:1.5px solid rgba(255,255,255,0.07);border-radius:16px;padding:14px 18px;cursor:pointer;margin-bottom:10px;transition:all .2s;"
+      onmouseover="this.style.borderColor='rgba(255,255,255,0.2)';this.style.background='#252d3d'"
+      onmouseout="this.style.borderColor='rgba(255,255,255,0.07)';this.style.background='#1e2330'"
+      ontouchstart="this.style.background='#252d3d'" ontouchend="this.style.background='#1e2330'">
+      <div style="width:48px;height:48px;border-radius:14px;background:${acc.color};display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:#fff;flex-shrink:0;box-shadow:0 4px 14px ${acc.color}44;">${acc.name[0].toUpperCase()}</div>
+      <div style="flex:1;">
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:#fff;">${acc.name}</div>
+        <div style="font-size:11px;color:#5a6478;margin-top:2px;">${Object.keys(acc.users||{}).length} пользователей</div>
+      </div>
+      <div style="font-size:18px;opacity:.25;">›</div>
+    </div>
+  `).join('');
+}
+
+// ── Step 2: Show users for selected account ──
+function goToStep2(accId){
+  _pendingAcc = { accId, accData: _allAccounts[accId] };
+  const acc = _allAccounts[accId];
+  // Update badge
+  const av = document.getElementById('accBadgeAvatar');
+  const nm = document.getElementById('accBadgeName');
+  if(av){ av.textContent=acc.name[0].toUpperCase(); av.style.background=acc.color; }
+  if(nm) nm.textContent = acc.name;
+  // Render users
+  const users = Object.entries(acc.users || {});
+  const ul = document.getElementById('usersList');
+  if(ul) ul.innerHTML = !users.length
+    ? `<div style="text-align:center;color:#5a6478;padding:20px;font-size:13px;">В аккаунте нет пользователей</div>`
+    : users.map(([uid, u])=>`
+      <div onclick="goToStep3('${uid}')"
+        style="display:flex;align-items:center;gap:12px;background:#1e2330;border:1.5px solid rgba(255,255,255,0.07);border-radius:14px;padding:12px 16px;cursor:pointer;margin-bottom:8px;transition:all .2s;"
+        onmouseover="this.style.borderColor='rgba(255,255,255,0.2)'"
+        onmouseout="this.style.borderColor='rgba(255,255,255,0.07)'"
+        ontouchstart="this.style.background='#252d3d'" ontouchend="this.style.background='#1e2330'">
+        <div style="width:40px;height:40px;border-radius:12px;background:${u.color||'#6c8dfa'};display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:16px;color:#fff;flex-shrink:0;">${(u.name||uid)[0].toUpperCase()}</div>
+        <div style="flex:1;">
+          <div style="font-weight:600;color:#fff;font-size:14px;">${u.name||uid}</div>
+          <div style="font-size:11px;color:#5a6478;">${{admin:'Администратор',editor:'Редактор',viewer:'Читатель'}[u.role]||'Пользователь'}</div>
+        </div>
+        <div style="font-size:16px;opacity:.25;">›</div>
+      </div>
+    `).join('');
+  goToStep(2);
+}
+
+// ── Step 3: Show password for selected user ──
+function goToStep3(userId){
+  if(!_pendingAcc) return;
+  const u = _pendingAcc.accData.users[userId];
+  _pendingUser = { userId, userData: u };
+  // Update user card
+  const color = u.color || _pendingAcc.accData.color || '#6c8dfa';
+  const av = document.getElementById('selUserAvatar');
+  const nm = document.getElementById('selUserName');
+  const mt = document.getElementById('selUserMeta');
+  if(av){ av.textContent=(u.name||userId)[0].toUpperCase(); av.style.background=color; av.style.boxShadow=`0 4px 14px ${color}55`; }
+  if(nm) nm.textContent = u.name || userId;
+  if(mt) mt.textContent = _pendingAcc.accData.name + ' · ' + ({admin:'Администратор',editor:'Редактор',viewer:'Читатель'}[u.role]||'Пользователь');
+  document.getElementById('lockInput').value = '';
+  document.getElementById('lockError').textContent = '';
+  updatePinDots('');
+  goToStep(3);
+  // Always show input and focus — works on both mobile and desktop
+  document.getElementById('lockInputWrap').style.display = 'block';
+  document.getElementById('lockTapArea').style.display   = 'none';
+  // Slight delay so the step transition completes before focusing
+  setTimeout(()=>{ try{ document.getElementById('lockInput').focus(); }catch(e){} }, 150);
+}
+
+// ── Step navigation ──
+function goToStep(n){
+  document.getElementById('stepAccounts').style.display = n===1 ? 'block' : 'none';
+  document.getElementById('stepUsers').style.display    = n===2 ? 'block' : 'none';
+  document.getElementById('stepPassword').style.display = n===3 ? 'block' : 'none';
+}
+
+// ── Password check ──
+function checkPassword(){
+  const input = document.getElementById('lockInput');
+  const val   = input.value;
+  if(!val){ document.getElementById('lockError').textContent = 'Введите пароль'; return; }
+  if(!_pendingUser){ document.getElementById('lockError').textContent = 'Выберите пользователя'; return; }
+
+  // Allow local override (from showChangePassword)
+  const localKey  = 'ffpro_'+_pendingAcc.accId+'_'+_pendingUser.userId+':ff_pass';
+  const localPass = (()=>{ try{return localStorage.getItem(localKey);}catch(e){return null;} })();
+  const correctPass = localPass || _pendingUser.userData.password || '';
+
+  if(val === correctPass){
+    const ls = document.getElementById('lockScreen');
+    ls.style.transition = 'opacity .4s';
+    ls.style.opacity = '0';
+    setTimeout(()=>{
+      ls.style.display='none'; ls.style.opacity=''; ls.style.transition='';
+      startApp(_pendingAcc.accId, _pendingUser.userId, _pendingAcc.accData, _pendingUser.userData);
+    }, 350);
+  } else {
+    input.value = '';
+    updatePinDots('');
+    document.getElementById('lockError').textContent = '❌ Неверный пароль';
+    const step = document.getElementById('stepPassword');
+    step.style.animation = 'lockShake .35s ease';
+    setTimeout(()=>{ step.style.animation=''; document.getElementById('lockError').textContent=''; }, 2000);
+  }
+}
+
+function updatePinDots(val){
+  const dots = document.getElementById('pinDots');
+  if(!dots) return;
+  const len = val.length;
+  if(len===0){ dots.innerHTML=''; return; }
+  const color = _pendingUser?.userData?.color || _pendingAcc?.accData?.color || '#6c8dfa';
+  dots.innerHTML = Array.from({length:len}).map((_,i)=>
+    `<div style="width:12px;height:12px;border-radius:50%;background:${color};animation:pinBounce .25s ease ${i===len-1?'0s':'none'} both;box-shadow:0 0 8px ${color}88;"></div>`
+  ).join('');
+  document.getElementById('lockError').textContent='';
+}
+
+function showChangePassword(){
+  if(!_session.accId){ alert('Сначала войдите'); return; }
+  const localKey = STORE_PREFIX+'ff_pass';
+  const localPass = (()=>{ try{return localStorage.getItem(localKey);}catch(e){return null;} })();
+  const curPass = localPass || _session.userData.password || '';
+  const cur = prompt(`Текущий пароль (${_session.userData.name||_session.userId}):`);
+  if(cur !== curPass){ alert('Неверный пароль'); return; }
+  const np1 = prompt('Новый пароль (минимум 3 символа):');
+  if(!np1||np1.length<3){ alert('Минимум 3 символа'); return; }
+  const np2 = prompt('Повторите:');
+  if(np1!==np2){ alert('Пароли не совпадают'); return; }
+  store.set('ff_pass', np1);
+  alert('✅ Пароль изменён! (хранится локально на этом устройстве)');
+}
+
+// ── Session check on startup ──
+function checkSession(){
+  const savedAcc  = (()=>{ try{return sessionStorage.getItem('ffpro_active_acc');}catch(e){return null;} })();
+  const savedUser = (()=>{ try{return sessionStorage.getItem('ffpro_active_user');}catch(e){return null;} })();
+
+  if(savedAcc && savedUser){
+    const pfx  = 'ffpro_'+savedAcc+'_'+savedUser+':';
+    const sess = (()=>{ try{return localStorage.getItem(pfx+'sess');}catch(e){return null;} })();
+    const ver  = (()=>{ try{return localStorage.getItem(pfx+'sess_ver');}catch(e){return null;} })();
+    if(ver===APP_VER && sess && sess!=='0'){
+      const age = Date.now() - parseInt(sess);
+      if(age < 24*60*60*1000){
+        // Valid session — but we need account data from Firebase first
+        loadAccounts(()=>{
+          const accData = _allAccounts[savedAcc];
+          if(accData && accData.users && accData.users[savedUser]){
+            const userData = accData.users[savedUser];
+            const ls = document.getElementById('lockScreen');
+            if(ls) ls.style.display='none';
+            startApp(savedAcc, savedUser, accData, userData);
+          } else {
+            // Account/user no longer exists — show login
+            showLoginScreen();
+          }
+        });
+        return true;
+      }
+    }
+  }
+  showLoginScreen();
+  return false;
+}
+
+function showLoginScreen(){
+  const ls = document.getElementById('lockScreen');
+  if(ls) ls.style.display='flex';
+  loadAccounts(renderAccounts);
+}
+
+function lockApp(){
+  // Clear session
+  if(_session.accId && _session.userId){
+    try{ sessionStorage.setItem('ffpro_active_acc',''); }catch(e){}
+    try{ sessionStorage.setItem('ffpro_active_user',''); }catch(e){}
+    try{ localStorage.setItem(STORE_PREFIX+'sess','0'); }catch(e){}
+  }
+  // Disconnect Firebase
+  if(fbRef){ try{fbRef.off();}catch(e){} fbRef=null; }
+  fbConnected=false;
+
+  // Reset state
+  allExpenses=[]; budgets={}; cfg={};
+  _session={accId:null,userId:null,userData:null,accData:null};
+  _pendingAcc=null; _pendingUser=null;
+  STORE_PREFIX='ff_none:';
+  USERS={}; CATS=JSON.parse(JSON.stringify(DEFAULT_CATS));
+
+  // Clear user switcher
+  const sw=document.getElementById('userSwitcher');
+  if(sw) sw.innerHTML='';
+
+  // Remove user badge
+  const badge = document.getElementById('userBadge');
+  if(badge) badge.remove();
+
+  // Show login
+  goToStep(1);
+  showLoginScreen();
+  const ls = document.getElementById('lockScreen');
+  ls.style.opacity='0'; ls.style.display='flex';
+  requestAnimationFrame(()=>{ ls.style.transition='opacity .3s'; ls.style.opacity='1'; });
+  setTimeout(()=>{ ls.style.transition=''; }, 350);
+}
+
+// ── STARTUP ──
+// iOS touch fix
+document.querySelectorAll('[onclick]').forEach(el=>{
+  if(el.tagName!=='BUTTON'&&el.tagName!=='A'&&el.tagName!=='INPUT'){
+    el.setAttribute('role','button'); el.setAttribute('tabindex','0');
+  }
+});
+const _mo = new MutationObserver(muts=>{
+  muts.forEach(m=>m.addedNodes.forEach(n=>{
+    if(n.querySelectorAll) n.querySelectorAll('[onclick]').forEach(el=>{
+      if(el.tagName!=='BUTTON'&&el.tagName!=='A'){ el.setAttribute('role','button'); }
+    });
+  }));
+});
+_mo.observe(document.body,{childList:true,subtree:true});
+
+// Check session / show login
+document.addEventListener('DOMContentLoaded', function(){ checkSession(); });
+if(document.readyState !== 'loading') checkSession();
+// Note: initEmojiPicker, renderCalendar etc. are called inside startApp()
+
+</script><!-- EDIT CATEGORY MODAL -->
+<div class="modal-overlay" id="editCatModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>Редактировать категорию <button class="modal-close" onclick="document.getElementById('editCatModal').classList.remove('open')">×</button></h2>
+    <input type="hidden" id="editCatOldName">
+    <input type="hidden" id="selectedEditEmoji" value="🏷">
+    <div class="form-group">
+      <label class="form-label">Название</label>
+      <input class="form-input" id="editCatName" placeholder="Название категории">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Иконка</label>
+        <div style="position:relative">
+          <button style="width:100%;height:46px;border-radius:12px;background:var(--surface);border:1.5px solid var(--border);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;" onclick="toggleEditEmojiPicker(event)">
+            <span id="editCatEmoji">🏷</span>
+          </button>
+          <div class="emoji-picker" id="editEmojiPicker"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Цвет</label>
+        <input type="color" class="cp2" id="editCatColor" value="#6c8dfa" style="width:100%;height:46px;border-radius:12px;">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('editCatModal').classList.remove('open')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveEditCat()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
